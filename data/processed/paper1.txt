@@ -1,0 +1,3506 @@
+Graph Neural Networks for Molecules
+A Chapter for Book “Machine Learning in Molecular Sciences"
+Yuyang Wang12, Zijie Li1, and Amir Barati Farimani123⋆
+1 Department of Mechanical Engineering, Carnegie Mellon University
+2 Machine Learning Department, Carnegie Mellon University
+3 Department of Chemical Engineering, Carnegie Mellon University
+Pittsburgh, PA 15213, USA
+{yuyangw,zijieli,barati}@cmu.edu
+Abstract. Graph neural networks (GNNs), which are capable of learning representations from graphical data, are naturally suitable for modeling molecular systems. This review introduces GNNs and their various
+applications for small organic molecules. GNNs rely on message-passing
+operations, a generic yet powerful framework, to update node features iteratively. Many researches design GNN architectures to effectively learn
+topological information of 2D molecule graphs as well as geometric information of 3D molecular systems. GNNs have been implemented in a
+wide variety of molecular applications, including molecular property prediction, molecular scoring and docking, molecular optimization and de
+novo generation, molecular dynamics simulation, etc. Besides, the review
+also summarizes the recent development of self-supervised learning for
+molecules with GNNs.
+Keywords: Graph Neural Network, Molecular Modeling, Quantitative
+Structure-activity Relationship, Molecular Generation, Molecular Simulation, Self-supervised Learning
+⋆Corresponding author.
+arXiv:2209.05582v2  [cs.LG]  6 Feb 2023
+
+Contents
+1
+Message Passing Graph Neural Networks. . . . . . . . . . . . . . . . . . . . . . . . . .
+1
+2
+Molecular Graph Neural Networks . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+4
+3
+Graph Neural Networks on Molecular Applications . . . . . . . . . . . . . . . . .
+10
+3.1
+Molecular Property Prediction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+10
+3.2
+Molecular Scoring and Docking . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+13
+3.3
+Molecular Dynamics Simulation . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+15
+3.4
+Molecular Optimization and Generation . . . . . . . . . . . . . . . . . . . . . .
+17
+Metrics and Benchmarks . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+17
+Fragment-based Generative Model . . . . . . . . . . . . . . . . . . . . . . . . . . .
+18
+Molecule-based Generative model. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+20
+Molecular Conformation Generation . . . . . . . . . . . . . . . . . . . . . . . . .
+23
+3.5
+Others . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+25
+Synthesis Planning and Retrosynthesis Prediction . . . . . . . . . . . . .
+25
+Molecular Knowledge Graph . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+25
+Biomolecules . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+26
+4
+Self-supervised Learning on Molecule Graphs . . . . . . . . . . . . . . . . . . . . . .
+26
+5
+Conclusion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+31
+
+Graph Neural Networks for Molecules
+1
+1
+Message Passing Graph Neural Networks
+Graphs are ubiquitous data structure that expresses a set of objects and the relationships between them. Formally, a graph G is defined as G = (V, E), where V
+and E denotes the set of objects (nodes) and their relationships (edges), respectively [1]. Fig. 1(a) shows an example of a graph containing four nodes and three
+edges. Graphs are powerful expressions that can model a wide range of systems.
+For example, the social network can be modeled as a graph where each node represents a person and each edge represents social connections between them, e.g.,
+friendship, spouseship, colleagueship, etc [2–4]. Other graphical systems include
+chemical compounds [5, 6], knowledge graphs [7, 8], physical systems [9, 10], and
+various other domains [11–13]. Recently, there is growing attention from the machine learning (ML) community to develop ML models, especially deep neural
+networks (DNNs) [14], to analyze graphical data [15, 16]. Previous deep learning
+models, including convolutional neural networks (CNNs) [17, 18] and recurrent
+neural networks (RNNs) [19], fail to directly operate on graphical structures.
+Graph neural networks (GNNs), a deep learning method, are developed to learn
+representations from graphs directly [20, 21]. GNNs have been prevalent in various domains and many different tasks. In what follows, we will introduce the
+basic concepts and operations of GNNs.
+Modern GNNs are built upon the message-passing layer that aggregates
+neighboring information to update each node in an iterative manner. The framework is first formalized by Gilmer et al [22]. Let G = (V, E) where the i-th node
+is ui ∈V and the edge between ui and uj is eij ∈E. Each node ui is initialized
+as a feature vector h(0)
+i
+= Embn(ui) via an node embedding function. Similar to
+node embedding, each edge eij is mapped to a feature vector via an edge embedding function aij = Embe(eij). The message-passing function is demonstrated
+in Fig. 1(b). Each message-passing layer contains two operations: (1) computation and aggregation of the messages from neighboring nodes and edges, and
+(2) update of the node feature based on the message and old feature. The two
+operations at k-th layers in a GNN is given in Equation 1 and 2, respectively.
+m(k)
+i
+=
+X
+uj∈N(ui)
+φ(k)
+m (h(k−1)
+i
+,h(k−1)
+j
+,aij),
+(1)
+h(k)
+i
+= φ(k)
+f (h(k−1)
+i
+,m(k)
+i
+),
+(2)
+where h(k)
+i
+∈RF denotes the feature vector of node ui at k-th layer, N(ui)
+models all the neighbors of node ui. φ(k)
+m and φ(k)
+u
+are the message and update
+functions. By conducting the two operations iteratively, node features within
+the graph are updated and can be utilized for node-level tasks. To conduct
+graph-level tasks, like molecular property prediction, directly utilizing all the
+node features might be infeasible as different graphs have different numbers of
+nodes. To obtain the representation of the whole graph, the readout operation
+is introduced to down-sample the node features as illustrated in Fig. 1(c). For a
+
+2
+Graph Neural Networks for Molecules
+𝒉𝟐
+𝒉𝟏
+𝒉𝟑
+𝒎𝟏𝟒
+𝒎𝟐𝟒
+𝒎𝟑𝟒
+𝒉𝟒
+𝒉𝟐
+𝒉𝟏
+𝒉𝟑
+𝒎𝟒
+𝒉𝟒
+𝒎𝟒
+𝒉𝟒
+𝒉𝟐
+𝒉𝟏
+𝒉𝟑
+𝒉𝑮
+1
+2
+(a) An example graph  
+(b) Message-passing function  
+(c) Readout function 
+Fig. 1. Illustration of (a) an example graph defined by nodes and edges, (b) messagingpassing function containing 1
+○an aggregation operation from h1, h2, and h3 to obtain
+message m4 and 2
+○an update operation to update the node feature h4 from m4, and
+(c) readout function to obtain the graph feature hG.
+GNN with K layers, after the last message-passing layer, the readout function
+R(·) is given in Equation 3.
+hG = R({h(K)
+i
+| ui ∈V}).
+(3)
+The design of the message-passing operation is essential to learning graph
+representations [23]. Since proposed, different GNNs have been developed with
+different aggregation and update functions for expressive graph representation
+learning [24–28]. Early spectral methods are built upon the spectral representation of graphs. Such methods compute the eigenvectors of the graph Laplacian for
+aggregating neighboring information and apply nonlinear activation functions on
+the aggregated feature to update each node [29, 30]. Graph convolutional network (GCN) [31] introduces a simple yet generic GNN framework, where the
+aggregation is implemented as an element-wise mean pooling over the node and
+its neighbors, and the update is implemented as a linear transformation W followed by nonlinear ReLU function [32] as given in Equation 4.
+h(k)
+i
+= ReLU(W · MEAN(h(k−1)
+j
+) | uj ∈N(ui) ∪{ui})).
+(4)
+GraphSAGE [33] formulates aggregation via multiplication of learnable weight
+matrix and neighboring features followed by ReLU and max-pooling over the
+aggregated features as given in Equation 5.
+h(k)
+i
+= σ
+
+W ′ ·
+h
+MAX
+
+ReLU(W · h(k−1)
+j
+) | uj ∈N(ui)
+
+∥h(k−1)
+i
+i
+,
+(5)
+where [·∥·] is the concatenation and σ is a nonlinear activation function like
+sigmoid. The update in GraphSAGE contains a concatenation of the node and
+aggregated features succeeded by a linear transformation W ′. Equation 6 shows
+the message-passing in graph isomorphism network (GIN) [34], another widely
+used GNN architecture. GIN proposes to sum the node features and all the
+
+Graph Neural Networks for Molecules
+3
+neighboring features and applies a multi-layer perceptron (MLP) to update the
+node in the message-passing layer.
+h(k)
+i
+= MLP((1 + ϵ)h(k−1)
+i
++
+X
+uj∈N(ui) h(k−1)
+j
+),
+(6)
+Further, graph attention network (GAT) [35] introduces the attention mechanism
+to message-passing via computing the attention score as the weight coefficient
+in aggregation. The standard attention follows Attn(Q, K, V ) = QK⊤
+√dk V , where
+Q, K, and V are quey, key, and value matrices of the embedding of each token,
+respectively, with the square root of the embedding dimension dk as the scaling
+factor. The message-passing in GAT adjusts the attention as given in Equation 7
+and 8.
+h(k)
+j
+= σ( 1
+K
+XK
+k=1
+X
+uj∈N(ui)∪{ui} αk
+ikW kh(k−1)
+j
+),
+(7)
+αk
+ij =
+exp(ReLU(a⊤[W kh(k−1)
+i
+∥W kh(k−1)
+j
+]))
+P
+uj∈N(ui) exp(ReLU(a⊤[W kh(k−1)
+i
+∥W kh(k−1)
+j
+]))
+,
+(8)
+where αk
+ij is the scalar that measures attention score, K is the number of attention heads, and a ∈R2F is the weight vector. Multiple works also leverage RNNs
+to model the message-passing function. Gated graph neural networks (GCNN)
+by Li et al. [25] employs the gated recurrent unit (GRU) [36] to aggregate neighboring information and update node features as shown in Equation 9.
+h(k)
+i
+= GRU
+
+h(k−1)
+i
+,
+X
+uj∈N(ui) Wh(k−1)
+j
+
+.
+(9)
+Long short-term memory (LSTM) [19] is implemented similarly as GRU for
+message-passing functions. Tai et al. [37] propose Tree-LSTM that extends LSTM
+to tree-structured data. Such a model is adapted to general graphs by Peng et
+al. [38] as well as Zayats and Ostendorf [39].
+Recently, there are also efforts on adapting the transformer architecture to
+graphical data [40]. The standard transformer is designed to learn from sequential
+data like text [41]. How to encode the structural information of the graph is the
+major challenge in applying the transformer on graphs. To this end, Graphormer
+[42] is directly built upon the standard transformer with an effective encoding
+of the structural information. Specifically, Graphormer includes spatial encoding
+of the shortest path, edge encoding of edge features on the shortest path, and
+centrality encoding of the degree centrality of each node. Each encoding is corporated with learnable parameters and added to the attention score. Dwivedi et al.
+[43] introduce a graph transformer that learns from the local attention of neighboring connections. It also implements the Laplacian eigenvectors of the graph
+as the positional encoding in place of sinusoidal positional encoding. Recently,
+tokenized graph transformer (TokenGT) is proposed to demonstrate that pure
+transformers can be powerful graph representation learners [44]. Unlike previous
+works which only tokenize nodes and integrate edge information in attention
+
+4
+Graph Neural Networks for Molecules
+updates, TokenGT tokenizes both nodes and edges with orthonormal node identifiers encoding the connectivity of the tokens and trainable type identifiers that
+encode whether a token is a node or an edge. TokenGT allows adaption of linear attention (e.g., Performer [45]) introduced for pure transformer and reaches
+O(N +M) cost, where N and M are the number of nodes and edges, respectively.
+For the readout operation, the primitive choices are pooling over all the node
+features, including mean-pooling, max-pooling, and summation-pooling. Xu et
+al. [34] point out that summation-pooling is more expressive than mean- and
+max-pooling, which can capture the full multiset while the other two poolings
+fail. Works have also investigated other readout functions to improve representation learning and computational efficiency. Attention mechanisms have been
+implemented in place of summation- or mean-pooling as the readout operation [22, 25]. Vinyals et al. [46] propose set2set function which implements an
+LSTM for unordered and size-variant input sets. Other methods have probed the
+rearrangement of the nodes to down-sample the features. Defferrard et al. [30]
+coarsen the graph into multi-levels via the Graclus algorithm and then rearrange
+the nodes into a balanced binary tree. The readout is conducted by aggregating
+the node features in a bottom-up manner. Following the insight, Zhang et al. [47]
+propose SortPool which ranks nodes based on their structural roles within the
+input graph and truncates the size of the graph after ranking. DiffPool [48], on
+the other hand, develops a differentiable pooling module that generates hierarchical graph representations. It learns a soft clustering assignment at each layer
+to aggregate node features. SAGPool [49] combines self-attention with end-toend hierarchical representation learning which includes both node feature and
+graph topology. In general, the readout operation can be considered as a special
+message-passing layer that aggregates all the updated node features within the
+graph. It also plays an important role in learning expressive graph representations.
+2
+Molecular Graph Neural Networks
+The previous section has introduced the basic concepts of the message-passing
+GNN and its prevalent variants. This section focuses on the GNN architectures
+that are adapted and designed for molecular representation learning. As the focus
+of this chapter, molecules, can be naturally viewed as graphs [50]. Fig. 2 illustrates examples of how molecule graphs are built. Within the graph, each node
+models an atom, and each edge models the interatomic interactions. Interactions
+include two-dimensional (2D) topological information like covalent bonds and
+3D geometric information like distances and angles. Graph representations have
+demonstrated advantages over other molecular featurization techniques. Some
+methods develop a language that converts a molecule into a one-dimensional
+(1D) string, e.g., simplified molecular-input line-entry system (SMILES) [51],
+SMILES arbitrary target specification (SMARTS) [52], and recently developed
+self-referencing embedded strings (SELFIES) [53]. Other works propose rules
+that can embed each molecule into a feature vector, namely a molecular finger-
+
+Graph Neural Networks for Molecules
+5
+Carbon
+Oxygen
+Single bond
+Double bond
+Aromatic bond
+Interatomic
+Distance  
+Aspirin in 2D
+Aspirin in 3D 
+2D topological graph
+3D geometric graph
+Fig. 2. Illustration of building graphs from molecules using 2D topological and 3D
+geometric information. The aspirin molecule is shown as an example.
+print or a descriptor, that usually encodes the presence or absence of certain substructures in the molecule. Examples include extended-connectivity fingerprint
+(ECFP) [54] and molecular access system (MACCS) keys [55]. Both string-based
+and fingerprint-based methods have been widely and successfully implemented
+in many applications including molecular similarity search, clustering, and virtual screening. With the rise of deep learning in recent years, deep learning
+methods have been applied to learn molecular representations from molecular
+languages and fingerprints. Though these featurization techniques follow certain
+rules to encode substructure information, they, however, still struggle to directly
+model the topological and geometric information of molecules. GNNs, which
+learn representation from molecule graphs, are capable of encoding the graphical structures. Many works have investigated the GNN architectures for learning
+from molecule graphs. Also, atomic and bond descriptors, like atomic number,
+charge, chirality, hybridization, bond type, etc., can be added to the node and
+edge features. This chapter focuses on the message-passing architecture design
+for molecule graphs.
+Duvenaud et al. [5] introduce one of the pioneering works that learning
+molecular representations via a GNN. In this work, node features are aggregated
+through concatenation and are updated through a learnable matrix conditioned
+on the node degree followed by a sigmoid function. The readout operation computes a weighted summation over node features from all the layers. Another
+trailblazing model, named Weave, from Kearnes et al. [6] proposes molecular
+graph convolutions that update edge features in each message-passing layer.
+Specifically, at each layer, one first updates the edge features from connected
+nodes and then updates the node features by aggregating the edges. Hu et al.
+
+6
+Graph Neural Networks for Molecules
+[56] extend the standard GIN by including the edge features in message-passing
+as given in Equation 10.
+h(k)
+v
+= MLP
+
+hl−1
+v
++
+X
+uj∈N(ui)(h(k−1)
+j
++ aij)
+
+,
+(10)
+where aij is the embedding of the edge between nodes ui and uj, containing the
+information of bond type and direction. Glimer et al. [22] elucidate a simple yet
+unified GNN framework named message passing neural network (MPNN) which
+most of the previous models fall into. They then propose enn-s2s, a variant of
+MPNN that aggregates neighboring information as given in Equation 11.
+a(k)
+i
+=
+X
+uj∈N(ui)
+MLP(aij)hj.
+(11)
+Besides, it follows set2set [46] as the readout function to obtain molecule representations. Yang et al. [57] further proposed directed MPNN (D-MPNN) that
+uses information associated with directed edges instead of information associated
+with vertices in standard MPNN. In addition, D-MPNN implements rich atom
+and bond features to improve the expressiveness of molecule graphs. Attention
+mechanisms have been developed for molecular GNNs. Xiong et al. [58] introduce AttentiveFP containing atom embedding layers and molecule embedding
+layers. The atom embedding layers borrow the attention mechanism introduced
+in GAT to aggregate local messages and the output attention context is fed
+into a gated recurrent unit (GRU) together with atom features from the previous layer to obtain updated context. The molecule embedding layers assume a
+virtual node that connects to all atoms and follows the same pattern as atom
+embedding layers. The final output of the virtual node is used as the representation of the whole molecule graph. Not only the attention mechanisms but
+also the transformer architectures are investigated for molecule graphs. Rong
+et al. [59] introduce GTransformer which combines the message-passing framework with transformer. GTransformer applies a bi-level message-passing strategy
+that aggregates and updates the information on both nodes and edges. Besides,
+it employs the residue connection and dynamic message-passing by randomly
+choosing the number of aggregation hops.
+So far, we have discussed GNNs that model molecules as 2D graphs. Namely,
+these models only consider topological information while ignoring geometric information like distances and angles in the 3D Euclidean space. Such 2D GNNs
+have demonstrated promising performance in many applications. However, 3D
+information is crucial as it is closely related to the energy landscape and molecules
+rely on 3D conformation to function in practice. Nevertheless, simply adding the
+positional coordinates into GNNs can be problematic as translation or rotation
+of the molecule will change the output of the models. One would expect to design
+GNN architectures whose output is immutable to the rotations and translations
+of 3D molecular structures [60]. To formalize, we borrow the concept from group
+theory and denote the set of proper rigid transformations (i.e., translations and
+rotations) in n-dimensional Euclidean space as SE(n) [61]. Many works thus
+
+Graph Neural Networks for Molecules
+7
+explore SE(3)-invariant GNNs for molecules existing in 3D Euclidean space.
+Schütt et al. [62] introduce the deep tensor neural network (DTNN) that model
+the distances between atoms in message-passing. DTNN extract the graph-level
+representation by feeding each node feature into an MLP and summing them
+up. Following DTNN, Schütt et al. further propose SchNet [63] that is composed
+of well-designed layers to model local correlations between atoms. Equation 12
+elaborate the atom-wise update while Equation 13 and 14 elaborate continuousfilter convolution at the (k + 1)-th layer in SchNet.
+h(k)
+i
+= Wh(k)
+i
++ b
+(12)
+h(k)
+i
+=
+X
+uj∈N(ui) h(k)
+j
+◦W (k−1)
+cf
+,
+(13)
+W (k)
+cf
+= SoftPlus(W (k)
+2
+· SoftPlus(W (k)
+1
+·
+
+uj∈N(ui)RBF(dij))),
+(14)
+where ◦is an element-wise multiplication, dij is the distance in Euclidean space
+between nodes ui and uj, and RBF(dij) =
+K
+k=1 exp(−γ∥dij −µk∥2) concatenates radial basis functions with µk = 0.1kÅ and γ = 10Å that expands the
+interatomic distance from a scalar to a vector of RK. Besides, it implements
+SoftPlus, a smooth approximation to ReLU, as nonlinear activation functions.
+Each message-passing layer starts with an atomise-wise update followed by a
+continuous-filter convolution operation. It then conducted two atom-wise updates with a SoftPlus activation in between to obtain the combination term
+v(k)
+i
+. The final output node feature at the (k+1)-th layer is updated by h(k+1)
+i
+=
+h(k)
+i
++v(k)
+i
+. SchNet effectively encodes 3D distance information to molecular GNN
+and inspires many follow-up works in this domain. PhysNet by Unke et al. [64]
+also leverages the interatomic distances to build an SE(3)-invariant GNN, which
+adapts the interaction blocks to update node features from distances and the
+residual blocks to learn representations with deeper neural networks. DimeNet
+by Gasteiger et al. [65] follows the architecture of PhysNet while integrating additional angular information expanded with Fourier-Bessel representations. The
+message-passing at the k-th layer from node uj to ui takes in not only the distance dij but also angles ∠ukujui as well as h(k−1)
+k
+, where uk ∈N(uj)\{ui}.
+The same team further proposes an improved version named DimeNet++ [66]
+with fast interactions and embedding hierarchy. Fang et al. [67] report GeoGNN
+containing the atom-bond graph and bond-angle graph to incorporate both interatomic distances and angles. In the atom-bond graph, each node represents
+an atom and each edge represents a covalent bond, while in the bond-angle
+graph, each node represents an atom-pair and each edge represents the angle
+between two pairs. GeoGNN builds the message-passing function based on GIN
+[34] and updates the atom-bond and bond-angle graphs iteratively. Adams et al.
+[68] introduce a model that is invariant to rotations of rotatable bonds.
+Though SE(3)-invariant has merits for GNN in various molecular property
+predictions, it is still limited for expressing graph representations in some aspects. One limitation is that such invariance requires the message-passing to
+
+8
+Graph Neural Networks for Molecules
+contain only features of distances or angles but is unable to encode directional
+information. Besides, for applications like force field prediction where the output
+is expected as a set of 3D vectors, SE(3)-invariant GNNs give the same output
+for molecules with different rotations in 3D. However, the force field is expected
+to rotate together with the rotation of the molecular system. To this end, SE(3)-
+equivariance is introduced which generalizes the concept of invariance. Formally,
+equivariance is a kind of symmetry for function. For function Φ : X →Y (e.g., Φ
+can be a deep neural network), it is equivariant with respect to group G such that
+it commutes with any group actions g ∈G on X and Y as shown in Equation 15.
+ρY
+g (Φ(x)) = Φ(ρX
+g (x)), ∀x ∈X, g ∈G,
+(15)
+where ρX (g) and ρY(g) are the group representation of group action g on X and
+Y space, respectively. The group representation of group action g ∈G on vector
+space V is defined as:
+ρ : G 7→GL(V ),
+(16)
+such that ρ(g1g2) = ρ(g1)ρ(g2), ∀g1, g2 ∈G (function satisfies this property is
+called group homomorphism). The group representation allows operating abstract mathematical object-group action, on the vector space of particular interest. More specifically, for 3D molecules’ modeling, we are interested in studying
+the equivariance with respect to 3D rotations/translations, which corresponds
+to the 3D special Euclidean group, SE(3). A useful property of the equivariant
+functions is that composing them will yield another equivariant function, which
+means the whole network is equivariant if each layer is equivariant. In addition, translation invariance (invariance is also equivariance) is straightforward
+to achieve in most neural networks as long as they do not use global coordinates
+as features. Therefore in most of the models, the 3D rotation group SO(3) is the
+only group that requires special care.
+The first major category of equivariant networks is based on irreducible representation, tensor product, and spherical harmonics. For 3D rotations, its representations are orthogonal matrices and can always be decomposed into the
+irreducible representation of the following form:
+ρ(g) = QT
+"M
+l
+D(l)(g)
+#
+Q,
+(17)
+where Q is an N × N orthogonal matrix (for change of basis), L is the direct
+sum, and D(l)(g) is the Wigner D-matrices for group action g [69]. Vectors
+transformed under D(l)(g) are called l-th order vectors, which have a length of
+2l + 1. Based on these representations, useful learnable equivariant layers can
+be developed. A common recipe is first building learnable filters with spherical
+harmonics and then composing them with input features through the tensor
+product, which ascribes to the fact that spherical harmonics are the equivariant
+basis for SO(3) and the tensor product is equivariant. Moreover, the tensor
+product of the irreducible representations of the vector space can be evaluated by
+
+Graph Neural Networks for Molecules
+9
+looking up a set of pre-calculated coefficients, which are called Clebsch-Gordon
+coefficients.
+Tensor Field Network [10] proposes a SO(3) equivariant layer under this
+recipe:
+hl
+out,i = W llhl
+in,i +
+X
+k≥0
+n
+X
+j∈N(i)
+W lk(⃗rj −⃗ri)hk
+in,j,
+(18)
+where hl
+i denotes the l-th order vector of input/output features, W lk(⃗rj −⃗ri) is
+a learnable filter conditioned on relative position ⃗rj −⃗ri. More specifically, the
+learnable filter is derived by multiplying a learnable scalar with Clebsch Gordon
+coefficients and spherical harmonic basis function:
+W lk(⃗rj −⃗ri) =
+k+l
+X
+J=|k−l|
+ψlk
+J (||rij||)
+J
+X
+m=−J
+Y (J)
+m
+⃗rj −⃗ri
+||rij||
+
+Qlk
+Jm,
+(19)
+where ψlk
+J (·) is a learnable function conditioned on the interatomic distance:
+||rij|| = ||⃗rj −⃗ri||2, Y (J)
+m
+denotes the m-th dimension of J-th spherical harmonics, and Qlk
+Jm denotes the (J, m)-th coefficient in Clebsch-Gordon matrice. The
+composed learnable filter W lk(⃗rj −⃗ri) with a shape (2l + 1) × (2k + 1) will map
+type-k features to type-l features. Tensor Field Network, there is an active line
+of works [70–72] in using operation on irreducible representation to build SE(3)
+equivariant network.
+Another direction to build an equivariant network is to exploit the properties
+of vectorial features instead of leveraging tools from group representation theory.
+The principle is that the operation on the directional features (e.g. velocities)
+can only be linear. Therefore, when building the message passing layer, the
+operations on vector features ⃗h are restricted to: (a) Linear projection W⃗h; (b)
+Dot product: < ⃗h1,⃗h2 >; (c) Tensor product: ⃗h1 ⊗⃗h2. An example of a such
+recipe is PaiNN [73], where it proposes an equivariant message passing block by
+extending the continuous and invariant message passing layer proposed in [63].
+Each layer in the PaiNN comprises two sub-blocks, a message passing block, and
+an update block. Inside the message passing block, the update of scalar features
+∆si are calculated as:
+∆si =
+X
+j∈N(i)
+φs(sj) ⊙Ws(||rij||),
+(20)
+where ⊙denotes Hadamard product, φs(·) is a learnable atom-wise function,
+Ws(||rij||) is the learnable continuous filter conditioned on interatomic distance,
+which is a linear combination of the radial basis function (PaiNN adopts the
+radial basis function proposed in [74]). Similarly, the update of vector features
+
+10
+Graph Neural Networks for Molecules
+is defined as:
+∆⃗hi =
+X
+j∈N(i)
+⃗hi ⊙φvv(sj) ⊙Wvv(||rij||)
+(21)
++
+X
+j∈N(i)
+φvs(sj)Wvs(||rij||)⃗rj −⃗ri
+||rij|| ,
+(22)
+where the first half of the equation is a convolution with respect to the vector
+features, and the second half is a convolution with respect to the scalar features
+using an equivariant filter. After the message passing block, the scalar and vector
+features are updated with the calculated residuals: si ←si+∆si,
+⃗hi ←⃗hi+∆⃗hi
+and then fed into update block. Next, in the update block, the update of scalar
+features is calculated as:
+∆si = ass(si, ||Wv⃗hi||) + asv(si, ||Wv⃗hi||) < Wu⃗hi, Wv⃗hi >,
+(23)
+where ass and asv are learnable function, and Wv, Wu are learnable linear projection matrices. And then the update of vector features is calculated as:
+∆⃗hi = avv(si, ||Wv⃗hi||)Wu⃗hi.
+(24)
+In practice, ass, asv, avv are derived from the same network a by splitting along
+the feature dimension of output. The scalar features and vector features are
+again updated with residuals. Equivariant Transformer [75] extends the above
+message passing layer to attention. GVP-GNN [76] leverages a similar idea with
+different design choices of the message passing layer. As demonstrated in Soledad
+Villar et al. [77], such formulation is expressive enough for approximating SE(3)
+equivariant functions.
+It is worth noting that the above models are just non-exhaustive instances of
+equivariant graph neural networks. There are several other lines of works that
+leverage different principles such as Lie algebra [78, 79] , or other message passing
+protocols designed for vector features [80–83] and more general groups [84].
+3
+Graph Neural Networks on Molecular Applications
+GNNs have been widely implemented to various applications in molecular sciences [85–87]. This section reviews the molecular applications empowered by
+GNNs, including molecular property prediction, molecular scoring and docking, molecular dynamics simulation, molecular optimization and generation, and
+others. Each subsection introduces the formulation of the problem, prevalent
+datasets and metrics, as well as works to solve the problem using GNNs.
+3.1
+Molecular Property Prediction
+The most straightforward utilization of GNNs is to predict the molecular properties given the molecule graphs [86]. Such a task can be considered as a graph
+
+Graph Neural Networks for Molecules
+11
+Molecular scoring 
+& docking
+Property 
+prediction
+Molecular 
+dynamics
+Biomolecules 
+Synthesis 
+planning
+Graph Neural 
+Network
+Knowledge 
+graph
+Molecular 
+optimization & de 
+novo generation
+Compound 
+Gene 
+Disease 
+Side 
+effect 
+Pathway
+Anatomy 
+Molecular 
+function 
+Fig. 3. Various applications of GNNs on molecular sciences.1
+classification or regression following the empirical risk minimization in supervised
+learning. For a dataset of N molecule graph and property pairs {(G1, y1), . . . , (GN, yN)},
+the objective to optimize is given in Equation 25.
+min
+θ
+X
+i
+ℓ(GNNθ(Gi), yi),
+(25)
+where GNNθ(·) is a GNN model parameterized by θ to predict a certain property from an input molecule graph Gi and ℓ(·, ·) measures the difference between the prediction and ground truth label, like cross-entropy loss for classification tasks and mean squared error for regression tasks [88–90]. Researchers
+have collected multiple databases containing a wide variety of molecular properties so that different GNN models can be benchmarked.
+Table 1 summarizes the domain, the number of compounds, the number of tasks, task type,
+whether containing 3D information and the sources of the popular databases
+for molecular property predictions. MoleculeNet [93] is a widely used benchmark for molecular property prediction built upon multiple public databases. It
+contains multi-level properties, including physiology, biophysics, physical chem1 Resources of some fragments in Fig. 3: [91–93], https://www.dgl.ai/news/2020/0
+6/09/covid.html, https://www.gla.ac.uk/news/archiveofnews/2021/septembe
+r/headline_812517_en.html, https://www.deepmind.com/blog/alphafold-a-so
+lution-to-a-50-year-old-grand-challenge-in-biology.
+
+12
+Graph Neural Networks for Molecules
+istry, and quantum mechanics. Besides, benchmarking-GNN [94] creates ZINC
+and AQSOL datasets for predicting the constrained and aqueous solubility. It
+should be pointed out that benchmarking-GNN only uses a subset of the original ZINC database (250,000 molecules) [95]. Recent efforts have focused on
+generating labeled molecular datasets via density functional theory (DFT) calculations. QM9, which is also included in MoleculeNet, contains approximately
+134k molecules with their geometric, energetic, electronic, and thermodynamic
+properties. Alchemy [96] extends the previous dataset to include 12 quantum mechanical properties of 119,487 molecules with up to 14 heavy atoms. PCQM4M
+and its latest version PCQM4Mv2 in the OGB challenge aim at predicting the
+DFT-calculated HOMO-LUMO energy gap from 2D or 3D molecule graphs.
+ANI-1 [97] extends this concept of such datasets by including the energies of
+off-equilibrium conformations. Specifically, ANI-1 contains 24,687,809 conformations from 57,462 molecules. There are also works that create curated datasets for
+specific tasks, including quantitative structure-odor relationship (QSOR) [98],
+Carbon absorption [99], etc. Molecular property prediction is challenging since
+different datasets in it have numbers of instances of different magnitudes, from
+less than 200 to about 4,000,000 molecules. Also, most classification tasks in it
+have quite imbalanced labels, therefore, ROC-AUC and PRC-AUC are widely
+used instead of accuracy to measure the performance of different models. Regression benchmarks adapt either root-mean-square error (RMSE) or mean absolute
+error (MAE) as evaluation metrics. Besides, Hu et al. [93] introduce scaffold
+splitting to separate structurally different molecules into training, validation,
+and test subsets. This strategy provides a more challenging yet realistic setting than random splitting and has been leveraged in many works on molecular
+property prediction [56–59, 67, 100].
+Most of the GNN architectures introduced in Section 1 and 2 can be leveraged
+on molecular property predictions. Apart from those models, a wide range of
+GNN variants have been developed for the application. Wieder et al. [86] provide
+a comprehensive survey for the molecular property predictions via GNNs till the
+year 2020. Early works utilize spectral GNNs for molecular property prediction
+[124–127]. Since the proposal of GCN [31], a simple yet generic algorithm, many
+GNNs have been built upon it for molecular property predictions [128–132].
+Some works have also explored using RNNs for aggregation in this area [133–
+135]. After the formalization of the message-passing framework by Gilmer et al.
+[22], researchers have built GNNs systematically following the insight to predict
+a wide range of molecular properties [57, 136–138].
+Recently, there are emerging researches that leverage DNNs, especially SE(3)-
+invariant or SE(3)-equivariant GNNs with 3D geometric information, for quantum mechanics (QM) predictions [139–141]. Many works are evaluated on QM9.
+Early SE(3)-invariant GNNs, including SchNet [63], PhysNet [64], HIP-NN [142],
+MGCN [143], DimeNet [65], DimeNet++ [66], Cormorant [144], SphereNet [145],
+are built upon interatomic distances and angles. Some works have leveraged orbital information to better predict QM properties [146–149]. GNNs built upon
+SE(3)-equivariant operations have also been widely applied to this applica-
+
+Graph Neural Networks for Molecules
+13
+Domain
+Dataset
+# Molecules
+# Tasks
+Task type
+3D
+Source
+Physiology
+MUTAG
+188
+1
+Classification
+No
+[101]
+SIDER
+1,427
+27
+Classification
+No
+[93, 102]
+ClinTox
+1,478
+2
+Classification
+No
+[93, 103]
+BBBP
+2,039
+1
+Classification
+No
+[93, 104]
+NCI1
+4,110
+1
+Classification
+No
+[105]
+Tox21
+7,831
+12
+Classification
+No
+[93, 106]
+ToxCast
+8,575
+617
+Classification
+No
+[93, 107]
+Biophysics
+BACE
+1,513
+1
+Classification
+No
+[93, 108]
+CCRF-CEM
+3,047
+1
+Regression
+No
+[109]
+PC-3
+4,294
+1
+Regression
+No
+[109]
+PDBBind
+19,443
+1
+Regression
+Yes
+[93, 110, 111]
+HIV
+41,127
+1
+Classification
+No
+[93, 112]
+MUV
+93,087
+17
+Classification
+No
+[93, 113]
+PCBA
+437,929
+128
+Classification
+No
+[93, 114]
+Physical
+Chemistry
+FreeSolv
+642
+1
+Regression
+No
+[93, 115]
+ESOL
+1,128
+1
+Regression
+No
+[93, 116]
+Lipophilicity
+4,200
+1
+Regression
+No
+[93, 117]
+AQSOL
+9,982
+1
+Regression
+No
+[94, 118]
+ZINC
+12,000
+1
+Regression
+No
+[94, 95]
+Quantum
+Mechanics
+QM7
+7,165
+1
+Regression
+Yes
+[93, 119]
+QM7b
+7,211
+14
+Regression
+Yes
+[93, 120]
+QM8
+21,786
+12
+Regression
+Yes
+[93, 121]
+QM9
+133,885
+12
+Regression
+Yes
+[93, 122]
+Alchemy
+119,487
+12
+Regression
+Yes
+[96]
+PCQM4M
+3,803,453
+1
+Regression
+No
+[123]
+PCQM4Mv2
+3,378,606
+1
+Regression
+Yes
+[123]
+ANI-1
+24,687,809 (conf.)
+1
+Regression
+Yes
+[97]
+Table 1. Summary of benchmarks for molecular property predictions.
+tion. Examples include SE(3)-Transformer [70], E(n)-GNN [150], LieTransformer
+[151], L0/L1Net [152], GemNet [153], PaiNN [154], and TorchMD-Net [75]. Many
+SE(3)-equivariant GNNs have also been benchmarked MD17 [155] which contains
+energy and force field predictions from molecular dynamics simulations of eight
+molecules. We will discuss GNN applications on MD simulations in Section 3.3
+extensively. Recent works have investigated ab-initio solution of the Schrödinger
+equation to acquire fundamental QM properties equipped with GNNs. Hermann
+et al. [156] propose PauliNet, a GNN-based wave function ansatz. PauliNet
+adapts SchNet as the GNN backbone and exploits multireference Hartree-Fock
+solution as the optimization start point. The whole framework is trained using
+variational quantum Monte Carlo (VMC). Gao et al. [157] introduce a framework combining a GNN and a neural wave function to solve the Schrödinger
+equation for multiple geometries via the VMC method simultaneously.
+3.2
+Molecular Scoring and Docking
+Molecular scoring mainly refers to the prediction of pharmacological activity of
+a molecule candidate, which is essential in in silico drug discovery [87]. Such a
+
+14
+Graph Neural Networks for Molecules
+method is widely applied in the virtual screening of drug candidates. It can also
+be leveraged to narrow down the search space for de novo molecular generation.
+There are two major categories of molecular scoring: ligand-based scoring and
+structure-based scoring. The ligand-based scoring requires no information about
+the receptor in pharmacological activities. Such a setting can be considered as
+a special case of molecular property predictions that model the quantitative
+structure-activity relationships (QSAR), like drug-likeness, toxicity, solubility,
+etc. On the contrary, structure-based scoring is based on the structure of the
+biological target (usually a protein) of a molecule. Such a strategy predicts
+the drug-target interactions given the drug candidates and the target receptors. Molecular docking predicts the preferred pose of a molecule when bound
+with a binding site to form a stable protein-ligand complex. It is one of the most
+popular techniques in structure-based drug discovery. Several works leverage 3D
+CNN to model the protein-ligand complex [158–162]. However, 3D CNN requires
+voxelization of 3D space which adds burdens to the memory. Moreover, such a
+voxelization loses resolution of the exact pose in 3D and lacks explicit modeling
+of interatomic interactions. This chapter reviews the structure-based molecular
+scoring and molecular docking empowered by GNNs.
+PDBBind [110, 163, 164] collects biomolecular complexes with their experimental binding affinity data and is widely used in structure-based scoring with
+deep learning as a regression task. DUD-E [165] is another dataset that contains 102 targets across different protein families. For each target, both positive
+(active) and negative (decoy) ligands are provided, which are formalized as classification tasks. Also, BindingDB [166, 167] is a public database of measured
+binding affinities of proteins and ligands. Drugbank [168, 169], a public online
+database, that collects FDA-approved drugs with drug target and drug action
+information. ChEMBL [117] also provides plenty of protein-ligand information
+including chemical compound and activity assay data. Several works have also
+created curated databases [170, 171].
+Structure-based scoring aims at predicting the binding affinity of drug-target
+interactions (DTIs) [172]. The key to designing GNN models for structure-based
+molecular scoring is how to integrate the information of the protein and/or
+the binding pocket to the ligand [173–175]. Feinberg et al. [176] introduce PotentialNet, a pioneering GNN framework that models the protein-ligand complexes. PotentialNet takes two stages in message-passing: (1) intra-molecular
+message-passing based only on covalent bonds, and (2) intra- and inter-molecular
+message-passing based on Euclidean distance and bonds. Gomes et al. [177] introduce a framework contain three parameter-sharing Siamese GNNs that encode ligand, protein, and protein-ligand complex, to features Gligand, Gprotein,
+and Gcomplex, respectively. The prediction of binding affinity then utilizes ∆G =
+Gcomplex −Gligand −Gprotein. Lim et al. [178] improve the framework by conducting intra-molecular message passing and inter-molecular massage-passing
+simultaneously. The model utilizes the subtraction between the features of a
+target protein and the ligand in their complex to predict the binding affinity.
+Such a strategy that models the interactions within the ligands and interactions
+
+Graph Neural Networks for Molecules
+15
+between ligands and targets is widely used in later works. InteractionGraphNet
+[179] by Jiang et al. models the intra- and inter-molecular interactions sequentially with two independent GNN models. Morrone et al. [180] adapt a dual-GNN
+framework to encode the ligand graph and protein-ligand interactions separately.
+The output of the two GNNs is concatenated and fed to an MLP to predict the
+binding affinity of the complex. Son et al. [181] propose GraphBAR, a framework
+containing multiple graphs whose adjacency matrices cover neighbors within different distance cutoffs. Knutson et al. [182] propose two parallel GNNs with one
+incorporating domain knowledge of proteins and ligands while the other learning interactions with no domain prior. The works listed above are built upon
+protein-ligand complexes. However, these models may suffer to make accurate
+predictions for those complexes without experimental measurements. To this
+end, Torng and Altman [183] propose to encode protein pocket graphs and 2D
+molecule graphs independently and combine the output features to predict the
+DTIs. Recent works have introduced language models to encode protein information in predicting DTIs [170, 184–188].
+Unlike structure-based scoring which predicts binding affinity directly, molecular docking focuses on predicting the posture of a protein-ligand complex.
+Conventional docking contains a search module to generate massive potential
+protein-ligand binding poses and a scoring module to evaluate the interaction of
+binding poses [189–191]. Such methods rely on heavy candidate sampling and
+usually involve empirical scoring functions, thus may be time-consuming and
+inaccurate [192, 193]. Recently, there are emerging works that apply GNNs for
+molecular docking [194–197]. Jiang et al. [198] develop a GNN to refine the initial
+docking pose from conventional docking software. The GNN can be run multiple
+times to gradually get optimal predictions. Mendez et al. [199] report DeepDock,
+which first learns a statistical potential based on distance likelihood and then
+samples ligand conformations based on learned potential. Specifically, DeepDock
+models statistical potentials on torsion angles to generate favorable molecular
+conformations in the binding site [200]. However, these methods assume prior
+knowledge of the binding site for the ligands. Some works have investigated
+predicting protein binding sites using GNNs [11, 201–204]. To this end, GNN
+methods have been developed to both locate the binding site and predict the
+preferred binding conformations. EquiBind [205] by Stärk et al. adapts SE(3)
+GNN to predict the binding site and applies constraints that only allow change
+of torsion angles while keeping bond lengths and angles fixed. TANKBind [206]
+by Lu et al. incorporates trigonometry constraints to GNNs which avoid unrealistic conformations like atom overlapping. It also leverages contrastive learning
+to build the energy landscape for the inter-molecular interaction of different
+binding sites.
+3.3
+Molecular Dynamics Simulation
+Molecular Dynamics (MD) has a wide range of applications in material science,
+chemistry, and biophysics [207–209]. It provides a numerical way to study and
+predict intricate molecular systems. In essence, MD simulation calculates atomic
+
+16
+Graph Neural Networks for Molecules
+forces and then updates the system states with a discretized equation of motion.
+The forces can either be modeled by ab initio approaches (AIMD) like density
+functional theory (DFT) [210] that considers the electronic structure of atoms or
+through empirical potentials which bypasses electronic structures [211]. AIMD is
+highly accurate but its computation is prohibitively expensive, which limits its
+scope of application. On the contrary, empirical force fields are much more efficient, yet with worse accuracy and limited generalizability. The major limitation
+of MD simulations using empirical force fields stems from the difficulty in how to
+describe complex interatomic potentials accurately with the appropriate functional form given the diverse types of interactions in the system. In this regard,
+neural networks have the potential to close the accuracy gap between empirical
+potentials and AIMD with its function approximation capability [212–216].
+Depending on how the environment of the atom is described, neural networks can be categorized into two broad categories. The first kind of approach
+relies on hand-designed featurization, which builds tailored descriptors that exploit domain knowledge [139, 212, 217–220]. One of the first examples is BehlerParrinello Neural Networks (BPNN) [221–223], which proposes atom-centered
+symmetry functions (ACSFs) for describing the local neighborhood around an
+atom. Graph neural networks, on the other hand, provide a framework to directly learn the atomic representations from the raw atomic coordinates and
+low-level atomic features, offering an alternative to the manually tailored atomic
+descriptors [5, 22, 62–64, 73, 74].
+Based on the above frameworks, neural networks can be used to address the
+efficiency-accuracy tradeoffin MD from the following aspects. The first aspect
+is to use neural networks to learn the forcefield (i.e. interatomic potential) of
+a molecular system. In this case, neural networks trained on data with ab initio level accuracy can serve as fast and efficient surrogate models for AIMD.
+The output of the network can either be the potential energy surface (PES) or
+atomic forces, in turn forming an energy-based model (also known as neural network potentials) [62, 63, 74, 139, 155, 223–227] or force-based model [228–231].
+These two variants are similar in principle (Chmiela et al. [155] demonstrate that
+force-based model essentially learns a linearization of the PES), but force-based
+models are more accurate at predicting forces in practice and can bypass the process of calculating energy gradients. However, force-based models are generally
+not energy conserving and thus can generate unphysical predictions. Another
+perspective is learning the pattern of molecular trajectories instead of the dynamics, which treats the simulation as a sampling problem. Here neural networks
+are used as a probabilistic generative model [232–235] to model the distribution
+p(xt+1|xt) with xt denotes the state of the system at time t. Since this paradigm
+no longer depends on dynamics to update the system, it does not suffer from
+the truncation error that arises from the discretization error of the equation of
+motion and thus can adopt a very large time step size (e.g. at the scale of a
+nanosecond). The downside is such a method can lead to unphysical prediction
+and cannot be used to study properties related to energy and dynamics.
+
+Graph Neural Networks for Molecules
+17
+3.4
+Molecular Optimization and Generation
+Efficient and effective molecular generation is of crucial importance in practice
+[236]. Especially, in the pharmaceutical industry, the discovery of new drugs is
+a long and expensive process that costs more than $2.5 billion and 10–15 years
+on average [237]. Therefore. it is appealing to develop techniques that automatically and effectively generate plausible molecule candidates. The deep generative
+models, which learn to approximate the distribution of observed data, have been
+leveraged for molecule graph optimization and de novo generation [87, 238–242].
+The optimization of the molecule usually starts with a hit compound and manipulates the graph to achieve better target properties like toxicity, drug-likeness,
+binding affinity, etc. The de novo molecule generative models generate novel
+molecules from scratch or conditioned on desired properties or specific fragments.
+In this case, molecule optimization can be considered as a conditional generation
+problem conditioned on the hit molecule. Thus, we review these two applications
+together in this section. There are two major frameworks in molecule graph generation: (1) fragment-based generative models and (2) molecule-based generative
+models [87, 243]. The fragment-based models generate molecule graph iteratively,
+where at each step the model choose an action, including adding, deleting, or
+editing one or multiple atoms, bonds, or functional groups. Such a fragmentbased framework can be incorporated with reinforcement learning (DRL) that
+defines a Markov decision process (MDP) and learns the best generative policy
+by maximizing the expected accumulated rewards. It can also be implemented
+with autoregressive models like RNNs, which determine the action based on
+statuses at previous steps [244, 245]. The molecule-based model, on the other
+hand, generates all the attributes (i.e., atoms and bonds) of a molecule at once.
+Many generative methods equipped with GNNs fall into this category, including variational autoencoder (VAE) [246], generative adversarial network (GAN)
+[247], flow-based generative model [248], and score-based or diffusion generative model [249, 250]. VAE usually contains an encoder and a decoder that are
+trained to maximize the evidence lower bound concerning the log-likelihood of
+training data. GAN introduces two jointly trained components: a generator and
+a discriminator, where the generator generates samples while the discriminator
+attempts to distinguish between samples from the training data and those from
+the generator. Flow-based models are built upon a sequence of invertible operations that directly models the likelihood of the observed data. Score-based or
+diffusion model defines a Markov chain that adds random noise to data at each
+step and learns to denoise from the noise to recover the data. The following part
+in this section introduces molecule graph generative methods in detail.
+Metrics and Benchmarks To measure the performance of deep generative
+models on molecule graphs, one needs to define comprehensive metrics and
+benchmarks [251, 252]. Simple but effective metrics include validity which assesses whether the generated molecules are valid, uniqueness/diversity which
+evaluates if a model generates a different molecule at each sampling, and novelty
+which measures whether generated molecules exist in the training set. Besides,
+
+18
+Graph Neural Networks for Molecules
+Preuer et al. propose the Fréchet ChemNet distance (FCD) [253] following the
+widely-used Fréchet Inception distance (FID) [254] in image synthesis, which is
+built upon the difference of hidden representations from ChemNet, a deep neural
+network, between generated molecules and those in the training set. KullbackLeibler (KL) divergence is also used to measure whether the generative model
+approximates the distribution of the training set. In conditional generation or optimization, certain properties are used to evaluate the generative models. Many
+works build evaluation metrics on drug-likeness [255]. For example, the synthetic
+accessibility score (SAS) describes the ease of synthesis of molecules based on
+fragment contributions and a complexity penalty [256], the octanol-water partition coefficient log P characterizes the drug-likeness of a molecule, the penalized
+log P is the subtraction of original log P and SAS, and quantitative estimate
+of drug-likeness (QED) applies desirability functions which provides a multicriteria metric to assess drug-likeness [257]. Maximum mean discrepancy (MMD)
+[258, 259] is another metric to evaluate the generated graphs. MMD is employed
+to measure the distribution difference between generated molecule graphs and
+training set on degrees, clustering coefficients, orbit counts, as well as bond
+lengths of different types. For candidate drug optimization or generative, the
+binding affinity of molecules with respect to the target protein pocket computed
+by molecular docking tools [260, 261] or molecular dynamic (MD) simulations
+[262–264] are also used as the objective [265, 266]. Energy-related properties, like
+HOMO-LUMO gap and dipole moment, have also been leveraged as the optimization or generation targets [267]. Additionally, Gao et al. [268] point out that
+sampling efficiency should be another important consideration in real molecular
+generation applications.
+Several works have contributed to creating molecular generation benchmarks
+and databases. GuacaMol [251] by Brown et al. employ a standardized subset
+from ChEMBL database [117]. It includes validity, uniqueness, novelty, FCD, and
+KL divergence as the evaluation measurements. MOSES [252] by Polykovskiy et
+al. contains 1,936,962 molecular structures selected from ZINC [95] and is split
+into the training, test, and scaffold test sets containing approximately 1.6M,
+176k, and 176k structure, respectively. Aside from the metrics included on GuacaMol, MOSES implements the similarity of fragments and scaffolds and properties distribution to evaluate the generative models. Besides, ZINC [95], ChEMBL
+[117], GDB databases [121, 269] are also used in training 2D molecule graph generative models. QM9 [122] which contains more than 130K 3D molecular structures, is also widely used for 3D molecular generation. Recently, GEOM [270] by
+Axelrod et al. introduces GEOM-QM9, an extension to QM9, containing multiple conformations for most molecules, and GEOM-Drugs containing 304,466
+drug-like species up to a maximum of 91 heavy atoms.
+Fragment-based Generative Model Fragment-based generative model modifies a molecule graph by adding, removing, or substituting a fragment (i.e., an
+atom or a motif) sequentially [271]. Such a framework can be directly modeled
+as an RL problem [265, 272–276]. At each time step t, an agent receives a reward
+
+Graph Neural Networks for Molecules
+19
+rt and predicts an action at ∈A given the current state st ∈S, and the next
+state st+1 ∈S is depended solely on st and at following the MDP setting. Here,
+A and S denote the action and state space, respectively. In this case, the state
+is an incomplete molecule graph, the action is what fragment to add, remove, or
+substitute, and the agent is usually modeled by a deep neural network, including
+GNNs. Besides, the reward rt evaluates how well the molecule is generated which
+could be a chemical metric or an output from property prediction ML models
+that approximate empirical measurements. The optimization objective of an RL
+agent (Equation 26) is to maximize the expected accumulated return Rt of a
+policy defined by the agent.
+Eπ[Rt] = Eπ
+" T
+X
+t
+γtrt
+#
+,
+(26)
+where γ ∈(0, 1] is a discount rate and T is the maximal length of a trajectory.
+RL provides a generic framework for molecular design of different targets [277].
+You and Liu et al. [278] propose a graph convolutional policy network (GCPN)
+that successively constructs a molecule by adding an atom, a substructure, or a
+bond, and is trained via the policy gradient algorithm. It built its agent on GCN
+[31]. Experiments show that GCPN can generate molecules with optimized or
+targeted penalized log P or QED properties. Jin et al. [279] present RationaleRL
+composed of rationale extraction, graph completion, and rationale distribution.
+RationaleRL is evaluated on GNK3β and JNK3 that measures the inhibition
+against glycogen synthase kinase-3 c-Jun N-terminal kinase-3 [280]. It also measures the validity, diversity, and novelty of the generative model. DeepGraphMolGen proposed by Khemchandani et al. [281] adapts GNNs for action prediction
+as well as property prediction in an RL setting. It designs a multi-objective
+reward function containing SAS, QED, and predicted binding affinity at the
+dopamine and norepinephrine transporters. Besides RL, autoregressive models
+can be incorporated with fragment-based molecule graph generation [244, 282].
+GraphINVENT by Mercado et al. [282] leverages a tiered GNN architecture to
+generate a single bond at each step. Podda et al. [283] and Chen et al. [284]
+develop autoregressive generative models that operate on the fragments. Lim
+et al. [285] propose to extend a given molecule scaffold by sequentially adding
+nodes and edges, which guarantees the generated molecules preserve the certain
+scaffold. Xie et al. [286] propose a framework named MARS which combines
+molecule graph editing with MCMC sampling. The method employs a GNN to
+sample fragment-editing actions at each step adaptively. Shi et al. [287] introduce
+GraphAF built upon an autoregressive normalized flow-based generative model
+that adds nodes and edges to a molecule graph sequentially. GraphAF can also
+be fine-tuned with RL for molecular optimization of certain properties. Following the normalized flow model, GraphDF by Luo et al. [288] samples discrete
+latent variables which are mapped to additional nodes and edges via invertible
+modulo shift transforms.
+Fragment-based generative models introduced so far have demonstrated the
+effectiveness of generating valid, unique, and diverse molecules as well as gen-
+
+20
+Graph Neural Networks for Molecules
+erating or optimizing towards desired SAS, log P, and QED. However, these
+models only adapt 2D topological information without 3D geometric features.
+Many recent works have investigated generative models on 3D molecular structures as many properties, like energy and protein-ligand binding, are related to
+3D geometries. Gebauer et al. [289] introduce G-SchNet, an autoregressive generative model for 3D molecular structure generation via placing atoms in 3D
+Euclidean space one by one. Gebauer et al. further introduce cG-SchNet [290],
+a conditional version of G-SchNet to generate molecules with certain motifs or
+low-energy (e.g., small HOMO-LUMO gap). Simm et al. [291] propose an RL
+formulation that adds atoms in 3D euclidean space sequentially and designs a reward function based on the fast quantum-chemical calculated electronic energy.
+The team also introduce MolGym, an RL environment comprising several molecular design tasks along with baseline models. Flam-Shepherd et al. [292] further
+introduce a 3D molecule generative RL framework to add fragments instead of
+single atoms at each step, which is more efficient in creating larger and complex
+molecules. Luo et al. [293] present G-SphereNet follows the flow-based generation while determining atoms in 3D space by predicting distances, angles, and
+torsion to preserve equivariance. Besides, researchers have investigated generating 3D molecules given a designated protein binding site. Docking scores along
+with other generic metrics are utilized to evaluate the deep generative models.
+Luo et al. [294] and GraphBP by Liu et al. [295] develop 3D autoregressive generative methods to sample the type and position of a new atom sequentially
+in the 3D binding pocket. Powers et al. [296] propose a molecular optimization
+method that expands a small fragment into a larger molecule within a protein
+site. At each step, a GNN trained by imitation learning selects the connecting
+point as well as the type and dihedral angle of a fragment to be connected. To
+preserve the equivariance in the 3D molecular generation, many works adopt a
+local spherical coordinate system in the generation process [289–291, 294, 295].
+Besides, Imrie et al. [297] introduce DeLinker which generates linkers given two
+fragments in 3D Euclidean space.
+Molecule-based Generative model Unlike fragment-based generative models, molecule-based generative models create the node features, edge features,
+and adjacency matrix of a molecule graph simultaneously. VAE, a popular generative model, has been leveraged for molecule-based generation [255, 298]. A
+VAE is composed of two sub-models: an encoder that encodes the input into a
+latent feature domain, and a decoder that maps the feature back to the input
+[246, 299]. The loss for training a VAE is given in Equation 27.
+ℓ= −Ez∼qθ(z|x)[log pφ(x′|z)] + KL(qθ(z|x)∥p(z)),
+(27)
+where x is a input data, z is the latent vector, qθ is the encoder, and pφ is the
+decoder. The first term measures how well the model reconstructs the data and
+the second term regularizes the latent vector to be similar to a prior Gaussian
+distribution p(z) through a KL divergence. Such a framework has been leveraged
+to generate molecule graphs [299–301]. Simonovsky et al. [302] propose Graph-
+
+Graph Neural Networks for Molecules
+21
+VAE, where the encoder is modeled by a GNN and the decoder is modeled by an
+MLP that outputs the probability of node features, edge features, and adjacency
+matrix given the predefined number of nodes. The reconstruction loss measures
+the difference between generated and input molecule graphs in terms of node
+features, edge features, and adjacency matrix. Kwon et al. [303] improve the
+framework with an approximate graph matching for efficient reconstruction loss.
+Besides, the work incorporates RL and an auxiliary property prediction to improve molecule graph generation. Ma et al. [304] investigate regularized VAE to
+generate semantically valid molecule graphs. Constraints included in the decoder
+include atomic valence, graph connectivity, and node label compatibility. Bresson et al. [305] design a graph VAE with GCN [31] as the encoder and a novel
+two-step decoder. In the decoder, an MLP first predicts the molecular formula
+from the latent vector and then a GCN learns to place bonds between atoms
+from the same latent vector. Jin et al. [306] propose JT-VAE, a two-phase generative model employing subgraphs. JT-VAE first generates a junction tree (JT)
+representing the scaffold of chemical substructures and then the substructures
+are assembled into a complete molecule graph. Jin et al. [307] further improve
+the framework by leveraging larger and more flexible motifs and a decoder that
+operates in a hierarchical coarse-to-fine manner. The model demonstrates better performance in larger molecule generation compared to previous works. Li
+et al. [308] present DeepScaffold that generates molecules based on scaffolds.
+DeepScaffold contains DeepScaffold a VAE with a GNN encoder to complete
+atom and bond types for scaffold, a scaffold-based generator, and a filter for
+pharmacophore constraints. Mahmood et al. [309] also report masked molecular generation which learns the conditional distribution of unobserved atoms
+and bonds given observed components. VAE-based model can also be directly
+leveraged for conditional generation with respect to targeted properties [310–
+313]. Besides, given the learned latent representation by the VAE framework,
+molecular optimization can also be conducted in the latent space [314–318]. Jin
+et al. [319] report VJTNN, a molecular optimization framework based on JTVAE, which includes stochastic latent codes to capture meaningful molecular
+variations. To avoid infeasible optimized molecules, the model introduces an
+adversarial training method to align the distribution of graphs on the latent domain. VJTNN achieves competitive performance on QED, penalized log P, and
+biological activity optimization. LIMO, by Eckmann et al. [266], adapts VAE
+with an inceptionism-like reverse optimization to optimize generated molecules
+towards better binding affinity.
+Apart from the VAE-based model, GAN has also been leveraged for molecule
+graph generation [320, 321]. GAN [247, 322–324] learns to approximate the distribution of actual data px(x) through a min-max game between a generator
+G and a discriminator D. The discriminator is trained to classify real samples
+from generated fake ones, while the generator learns to generate samples from
+random noise z ∼pz(z) that the discriminator fails to recognize. The objective
+of GAN is given in Equation 28.
+min
+G max
+D
+ Ex∼px(x)[log D(x)] + Ez∼pz(z)[log(1 −D(G(z))]
+
+,
+(28)
+
+22
+Graph Neural Networks for Molecules
+where G attempts to generate plausible samples by minimizing the objective
+while D attempts to better detect fake samples by maximizing the objective.
+Cao et al. [325] implement the architecture of GAN to molecule graph generation and propose MolGAN. The generator in MolGAN generates an adjacency
+matrix and feature matrix that combine to define a molecule graph. Despite the
+generator and discriminator as in the standard GAN, MolGAN adapts an RL
+agent to generate molecules with targeted chemical properties (e.g., QED, SAS,
+log P). Maziarka et al. [326] introduce Mol-CycleGAN for molecular optimization, following CycleGAN [327]. Mol-CycleGAN generates a structurally similar
+molecule with preferred properties given a start compound. The model demonstrates effectiveness in optimizing penalized log P. Tsujimoto et al. [328] further
+present L-MolGAN, which improves MolGAN performance on large molecule
+generation by penalizing the disconnected generated molecule graphs.
+Other generative models have also been investigated for the molecule graph
+generation. The normalized flow-based model can also be leveraged in moleculebased generation besides fragment-based generation [329].
+A flow-based model defines a invertible deterministic transformation fθ parameterized by θ between the data space X and the latent space Z as fθ : Z →X
+[248, 330]. Z follows a prior Gaussian distribution pZ, the log-likelihood of a data
+x is given in Equation 29.
+log pX(x) = log pZ(f −1
+θ
+(x)) + log | det J|,
+(29)
+where J =
+∂f −1
+θ
+(x)
+x
+is the Jacobian matrix of the function f −1
+θ
+(x). The objective of training a flow-based model is to maximize the log-likelihood. To
+efficiently compute det J, the affine coupling mapping is leveraged in a normalized flow-based model [331, 332]. GraphNVP by Madhawa et al. [333] and
+MoFlow by Zang et al. [334] employ reversible normalizing flow-based model
+for the molecule graph generation. Both models decompose the generation into
+two phases, namely the generation of the adjacency matrix and node attributes,
+which yields the complete molecule graphs. Score-based [249, 335] or diffusion
+generative models [250, 336] are also investigated in molecule graph generation
+[337]. Song et al. [338] propose a unified framework that generalizes score-based
+or diffusion generative models through stochastic differential equations (SDEs).
+The forward diffusion process that transforms data x to a simple noise distribution is given in Equation 30.
+dx = f(x, t)dt + g(t)dw,
+(30)
+where w is the standard Wiener process, f(·, t) is the drift coefficient of x(t),
+and g(·) is the diffusion coefficient of x(t). To sample data from random noise,
+the reversed SDE is given in Equation 31.
+dx = [f(x, t) −g2(t)∇x log pt(x)]dt + g(t)d ˜w,
+(31)
+where ˜w is a standard Wiener process during the reversed flow. The training
+objective for a score function sθ(x, t) parameterized by θ such that sθ(x, t) ≈
+
+Graph Neural Networks for Molecules
+23
+∇x log pt(x) is given in Equation 32.
+Et∼U(0,T )Ept(x)[λ(t)∥∇x log pt(x) −sθ(x)∥2
+2],
+(32)
+where λ(t) is a positive weighting function and U(0, T) is a uniform distribution over the diffusion time interval. Hoogeboom et al. [267] propose equivariant
+diffusion model (EDM) which is built upon DDPM [250], a diffusion generative
+framework, to generate 3D molecules with an equivariant GNN model. EDM
+treats molecules as atomic types and coordinates without explicitly considering interatomic bonds. The framework has been demonstrated effective for random and conditional generation. Besides, diffusion model has been introduced
+to biomolecule generation (e.g., proteins) with GNNs [339].
+Molecular Conformation Generation Despite molecular optimization and
+generation via GNN and deep generative models, another important application
+of generative models is molecular conformation generation, which aims at predicting the ensemble of low-energy 3D conformations of a molecule from its 2D
+graph solely [340, 341]. Understanding the low-energy conformations, the most
+stable configurations of molecules in 3D Euclidean space, is of great importance.
+Since 3D molecular structures determine the functions of chemical and biological
+processes [342]. Popular metrics for molecular conformation generation include
+the matching score (MAT) and the coverage score (COV) [343–345] which are
+both built up root-mean-square deviation (RMSD) computing the normalized
+Frobenius norm of the discrepancy of two aligned atomic coordinate systems
+[346]. Formally, let Sg denote the sets of generated conformations and Sr denote the one with reference conformations. The expression of MAT and COV
+are given in Equation 33 and 34, respectively.
+MAT(Sg, Sr) =
+1
+|Sr|
+X
+R∈Sr
+min
+ˆ
+R∈Sg
+RMSD(R, ˆR),
+(33)
+COV(Sg, Sr) =
+1
+|Sr||{R ∈Sr|RMSD(R, ˆR) < δ, ˆR ∈Sg}|,
+(34)
+where δ is a pre-defined threshold. Generally, a lower MAT score indicates a
+better accuracy and a higher COV score indicates a better diversity for the
+generative model. In many cases, δ is set as 0.5Å for QM9 and 1.25Å for GEOMDrugs. Ganea et al. [347] further propose recall metrics, MAT-R and COV-R, to
+measure the number of correctly predicted conformers, as well as the precision
+metrics, MAT-P and COV-P, to measure the number of generated structures of
+high quality.
+Mansimov et al. [348] proposed to leverage a VAE framework with MPNN to
+directly predict the atomic coordinates from 2D graphs, which does not conserve
+the SE(3)-equivariance. To this end, the following works instead predict invariant geometric attributes like interatomic distances and torsional angles. Simm
+et al. [349] propose graph distance geometry (GraphDG) following the VAE
+framework to predict the interatomic distances. Conditional graph continuous
+
+24
+Graph Neural Networks for Molecules
+flow (CGCF) by Xu et al. [350] predicts the distance matrix via a flow-based
+model and optimizes generated conformations via a Markov chain Monte Carlo
+(MCMC) process and an energy-based tilting model (ETM). Both GraphDG
+and CGCF utilize the distance geometry (DG) method [351] to search atomic
+coordinates from the predicted distance matrix. ConfVAE by Xu et al. [352] improves the VAE pipeline which learns to encode molecule graphs into latent space
+and computes the 3D conformations as a principled bilevel optimization problem. However, these methods predict the distances and conformations separately
+where the errors in predicted distances accumulate in conformation calculations.
+In some cases, the predicted distance matrix may even fail to preserve valid 3D
+conformations. To avoid the issues caused by the two-stage strategy, ConfGF by
+Shi et al. [344] and DGSM by Luo et al. [353] directly estimates the gradient
+fields of the logarithm density of atomic coordinates (pseudo force fields) via a
+score-based generative method. The former relies on static molecule graphs to
+predict conformations as previous methods, while the latter deploys a dynamic
+graph construction that better models long-range interactions. Further, GeoDiff
+by Xu et al. [345] leverages the denoising diffusion probabilistic model (DDPM),
+a diffusion generative model, to generate 3D conformations via reversing a diffusion process. To keep the SE(3)-equivariance, ConfGF, DGSM, and GeoDiff
+leverage equivariant GNNs to make predictions of atomic coordinates. Besides
+interatomic distances and atomic positions, recent works have investigated to
+predict torsional angles in conformation generation. Ganea et al. propose GeoMol [347] which predicts local 3D structures and ensembles the local structures
+by predicting the torsion angles. Jing et al. [354] introduce torsional diffusion,
+a diffusion generative model that formalizes molecular conformation generation
+in the space of torsional angles. TorsionNet by Gogineni et al. [355] presents the
+conformation generation as a reinforcement learning problem to sample torsion
+at each time step.
+In summary, various generative models, including VAE, GAN, flow-based
+model, and score-based/diffusion model, have been implemented for a molecular
+generation. The fragment-based generation defines the generative process as sequentially adding atoms, bonds, or motifs to build the graph. Such a framework,
+incorporated with RL or autoregressive models, makes the process tractable.
+RL provides a suitable framework for molecular optimization. Recently works
+that utilize a flow-based model to generate molecules autoregressively have also
+been a success. The molecule-based generation, on the other hand, generates
+the whole molecule simultaneously. Within this category, VAE-based generative
+models are widely used and explicitly learn a meaningful latent space where
+molecular search and optimization can be easily conducted. A few works leverage GAN models for molecular generation, however, it is not as widely used as
+VAE, due to potentially unstable training and hard to manipulate the generation. Flow-based models can also be leveraged for the molecule-based generation
+which generates node features, bond features, and/or adjacency matrices simultaneously. Recently, the development of score-based or diffusion models in image
+generation has also inspired works in molecular generation. Moreover, recent re-
+
+Graph Neural Networks for Molecules
+25
+search is paying more attention to 3D molecular structure generations beyond
+2D graphs. Since 3D structures play an essential role in various molecular applications. Notably, there are also massively works that build molecular generative
+models on string-based representations (e.g., SMILES) [255, 356–358]. However,
+this is not the focus of this chapter, and compared to string-based representations, molecule graph generation with GNNs provides more topological and
+geometric information that is vital in molecular science.
+3.5
+Others
+Synthesis Planning and Retrosynthesis Prediction Synthesis planning
+aims at determining the synthesis path of a chemical compound from available
+starting materials through a series of chemical reactions [359]. Retrosynthetic
+prediction, formalized by E. J. Corey [360], refers to the reverse problem: to
+select suitable disconnections recursively given the desired product [361]. The
+major challenge in the computational retrosynthetic analysis is the combinatorial exploration space of chemical reactions for target compounds. There are
+two major approaches: template-based and template-free methods. The former
+matches the target molecule to chemical reaction rules to yield one or multiple
+candidate precursors. The latter directly predicts the reactants from target products. Recently, several works have investigated template-free or semi templatefree retrosynthesis prediction via GNNs. USPTO-50k [362] which contains 50k
+atom-mapped reactions with 10 reaction classes is the most widely used benchmark. G2G proposed by Shi et al. [363] learns to translate a target molecule into
+a set of reactant molecule graphs. G2G contains two steps: (1) edit prediction
+that splits the target molecule into multiple synthons via predicting the reaction
+centers, and (2) synthon completion that transforms the synthons into reactant
+graphs. Such a workflow has been leveraged by many works. Sun et al. [364] propose to formalize such a retrosynthesis prediction problem as an energy-based
+model (EBM). Somnath et al. [365] introduce leaving graphs from a precomputed vocabulary for synthon completion, which greatly reduces the complexity
+of synthon generation. Lin et al. [366] further present G2GT, which leverages
+recent graph transformer (i.e., Graphormer [42]) in template-free retrosynthesis
+prediction. Han et al. [367] propose GNN-Retro that combines GNN with the
+A* search algorithm. Besides retrosynthetic prediction, GNNs have been implemented other tasks concerning chemical reactions, including predicting reaction
+products [368, 369], reaction conditions [370], reaction yields [371, 372], and
+synthesizability [373–375].
+Molecular Knowledge Graph Knowledge graphs (KGs) are graphical structured knowledge bases where each node models a knowledge entity and each
+edge models the relations between entities [7, 376, 377]. KGs are a powerful tool
+that incorporates multiple data sources. In molecular science, KGs have been
+leveraged to represent biomedical knowledge. Specifically, nodes may model various entities, including drugs, protein targets, diseases, side effects, pathways,
+
+26
+Graph Neural Networks for Molecules
+etc. Such biomedical KGs can be leveraged to predict drug-drug interactions
+(DDIs), which aims at predicting the outcomes of combined use of two or more
+drugs, like side effects, adverse reactions, or even toxicity [378–382]. Sources of
+DDI knowledge include DrugBank [168, 383], KEGG [384, 385], BioSNAP [386],
+PharmGKB [387, 388], Bio2RDF [7, 389], etc. In DDI KG, nodes model drugs
+and edges model interactions, thus DDI prediction can be treated as link prediction tasks. GNNs have since made progress on DDI prediction based on KGs.
+Feng et al. [390] implement GCN [31] on drug-drug interaction KG to predict
+potential DDIs. Yu et al. [391] introduce SumGNN which utilizes a local subgraph in KG around drug pairs instead of the entire KG to obtain information.
+Multiple works investigate leveraging multi-modal data to enhance DDI predictions [392, 393]. Lyu et al. [394] propose MDNN containing KG and heterogeneous pathways to obtain multi-modal representations. Lin et al. [395] propose
+an end-to-end framework built upon GNNs which captures potential neighborhoods of drugs by leveraging their relations in KG. Zhang et al. [396] propose
+MKGE which combines KG embedding with molecular structure features for
+DDI predictions. He et al. [397] propose to fuse the topological information from
+molecular graphs and the interaction information in the form of SMILES. Some
+works directly build GNNs on molecular graphs of drug pairs to predict DDIs
+[398–400] instead of relying on KGs. Besides DDI KGs, other KGs have also
+been investigated like protein-protein interaction KGs [56, 401–403] and chemical reaction networks [404]. Zitnik et al. [405] propose Decagon based on graph
+autoencoder to predict side effects of drug pairs and build a large multi-modal
+KG including protein-protein, drug-protein, and drug-drug interactions.
+Biomolecules Though the focus of this chapter lies in small organic molecules.
+It is worth mentioning that GNNs have also been leveraged to learn expressive representations of large biomolecules (i.e., proteins, RNAs, DNAs, etc.).
+AlphaFold [406], which is a milestone in protein structure prediction, utilizes
+attention and message-passing mechanisms. Following this, multiple works have
+probed improving protein structure prediction from amino acid sequences [407–
+410]. Many works have also developed GNN-based models in various protein
+applications, including protein function prediction [411–413], protein-compound
+interactions [414–417] and protein design [339, 418–421]. Besides proteins, several works have investigated RNAs and DNAs via GNNs [422–424].
+4
+Self-supervised Learning on Molecule Graphs
+The previous section reviews various GNN architectures with expressive messagepassing operations for molecular systems. However, a well-designed neural network does not guarantee to perform well, as the performance of the model is
+also closely related to the quantity and quality of data. In supervised learning,
+the ML models require instance-label pairs to learn representations. Labeling
+data can be expensive and time-consuming, and acquiring labels in molecular science takes even more effort. Measuring the attributes and properties of
+
+Graph Neural Networks for Molecules
+27
+molecules depends on complicated wet-lab experiments and/or expensive simulations. Thus, labeled molecular data is far from sufficient in many applications.
+Besides, molecular labels are usually noisy since different experimental or simulation environments can lead to significant fluctuations. Moreover, the chemical
+space of potential molecules is magnificent. The number of potential pharmacologically active molecules is estimated to be in the order of 1023 to 1060 [425]. For
+the GNN trained on limited and noisy data in a supervised learning manner, it
+is of great challenge to generalize novel molecules from the huge chemical space.
+Despite the limited labeled molecular data, the number of molecules in publicly
+available databases is growing fast in recent years. Such databases include ZINC
+[95], PubChem [114], Enamine REAL library, etc. A question may be asked: can
+one make use of the large unlabeled data to improve ML models?
+Following the insight, self-supervised learning (SSL) [426, 427] is proposed to
+utilize the large unlabelled data and learn better representations that are generalizable to various challenging applications. As the name indicates, SSL trains the
+ML models via the supervisory signals from the data itself, which usually utilizes
+the underlying structure in the data. There are two major categories of SSL: (1)
+non-contrastive learning methods, (2) contrastive learning methods. Many noncontrastive learning methods rely on generative models that learn meaningful
+representations by recovering the data from partially observed input. Examples
+in computer vision include colorization of grayscaled images [428], prediction of
+rotation of images [429], and reconstruction of partially masked image [430–433].
+In natural language processing (NLP), self-supervised pre-training via prediction
+of masked tokens has been a standard technique in deploying large language models [434, 435]. On the other hand, contrastive learning (CL) methods, like MoCo
+[436], SimCLR [437], and SwAV [438], learns representations by attracting the
+representations of the positive pairs together and pushing representations of the
+negative pairs away, where positive pairs are perturbed instances from the same
+data while negative samples are instances from different data [439]. For a query
+representation q and a batch of N + 1 keys containing only one key k+ from a
+positive instance, the information noise-contrastive estimation (InfoNCE) loss,
+a popular type of contrastive loss, is given in Equation 35.
+ℓ= −log
+exp((q⊤k+)/τ)
+PN
+i=0 exp((q⊤ki)/τ)
+,
+(35)
+where τ is the temperature parameter. Such a loss can be considered as a (N +1)-
+way classifier to classify q as its positive instance k+. CL has been a success in a
+wide variety applications [440–444]. Following the objective of contrasting representation in CL, researchers design non-contrastive methods that only require
+pulling together representations of positive pairs, like BYOL [445], SimSiam
+[446], Barlow Twins [447], and VICReg [448], which simply the framework.
+Since proposed, SSL has been introduced to learning molecular representations from large unlabeled data with GNNs [449]. As shown in Figure 4, SSL
+on molecule graphs has two steps. In the pre-training step, the GNN is trained
+on large unlabeled molecular data via self-supervised learning tasks, where the
+
+28
+Graph Neural Networks for Molecules
+Parameter sharing
+Physiology
+Biophysics
+Physical
+chemistry
+Quantum 
+mechanics
+…… 
+Step 1: SSL pre-training
+Large 
+database
+Representation 
+domain
+SSL task
+GNN
+Step 2: Downstream application
+Molecules 
+Molecular 
+applications
+GNN
+Fig. 4. Illustration of self-supervised learning pre-training and fine-tuning on downstream tasks.
+GNN parameters are optimized to encode expressive molecular representations.
+In the downstream application step, the pre-trained GNN is fine-tuned or used
+to directly extract the learned representations for various molecular applications.
+By this means, the GNN model digs into the molecule graphs and learns better
+representations that can perform well even on tasks with noisy and limited data.
+The following paragraphs will enumerate works that investigate different SSL
+techniques on molecule graphs.
+Non-contrastive SSL methods are first introduced to learn representations
+from 2D molecule graphs. Most of such molecular SSL methods are based on
+predicting the probability or attribute of a masked or partially observed substructure occurring within a molecule [450]. Hu et al. [56] introduce pre-training
+tasks at the levels of both individual nodes and the whole graphs. The node-level
+pre-training contains two self-supervised tasks: context prediction which uses
+subgraphs to predict their surrounding graph structures, and masked attribute
+prediction which pre-trains GNNs through predicting the attributes of masked
+nodes/edges. While the graph-level pre-training is based on supervised learning
+of domain-specific graph labels, which is still constrained by the availability of
+molecular labels. Rong et al. [59] further introduce contextual property prediction which predicts masked subgraphs and graph-level motif prediction which
+predicts the containing functional groups within a molecule as two SSL tasks.
+This work also adapts a transformer-based model to learn representations from
+molecule graphs. Zhang et al. [451] also design motif-level self-supervised tasks
+that leverage the BRICS algorithm to construct motif trees and pre-trains GNNs
+by generating molecular graphs motif-by-motif. At each step of pre-training, the
+model first predicts the topology which determines whether a node has extra motifs to be connected to, and then predicts the motif label from motif vocabulary.
+
+Graph Neural Networks for Molecules
+29
+He et al. [452] extends the idea of predicting masked attributes even further by
+leveraging information in chemical reactions. The work named masked molecule
+modeling (MMM) adapts Graphormer [42] to take in molecule graphs in a chemical reaction, the GNN model is then trained to reconstruct randomly masked
+atoms, motifs, and bonds within the reaction. Besides, Liu et al. [453] leverage N-gram graph representations to embed molecule graphs in an unsupervised
+manner that assembles the node features in short walks. The graph embedding
+method requires no training and can be used for different ML models. Sun et al.
+[454] introduce InfoGraphn which learns presentations by maximizing the mutual information between the graph-level embedding and multi-level substructure
+embedding.
+Apart from 2D graphs, recent works have probed SSL strategies to include
+3D geometric information. To acquire 3D conformations for pre-training, some
+works [67, 455, 456] uses efficient Merck molecular force field (MMFF94) function in RDKit 2 to simulation 3D atomic positions. While other methods [457–
+461] leverage datasets containing 3D molecular conformations at equilibrium
+calculated by more precise yet expensive density functional theory (DFT), including QM9, GEOM, PCQM4Mv2, and Molecule3D. Chen et al. [462] design
+an algebraic graph-assisted bidirectional transformer method that fuses representations from the algebraic graph and transformer. The algebraic graph embeds 3D stereochemical information into graph invariants and the bidirectional
+transformer embeds representations from SMILES [51] language. The fused representations can be incorporated with a variety of machine learning algorithms,
+including tree-based models and DNNs, for various molecular property predictions. Fang et al. [67] propose a geometry-enhanced molecular representation
+learning method (GEM) that learns representations through predicting bond
+lengths, bond angles, and interatomic distances. It also introduces an auxiliary graph-level SSL task that predicts molecular fingerprints, i.e., ECFP and
+MACCS keys. Zhou et al. [456] present masked atom prediction and 3D position
+denoising including pair-distance prediction and direct coordinate prediction in
+the framework named Uni-Mol. The input molecule is perturbed by masking
+some atoms and adding noise to 3D coordinates randomly. Uni-Mol also adapts
+a transformer-based model with invariant spatial positional encoding to embed
+geometric information. With the recent development of equivariant GNNs on 3D
+molecules, researchers have explored SSL strategies that perform to improve the
+expressiveness of such models. Zaidi et al. [459], Liu et al. [460], and Jiao et al.
+[461] have demonstrated the effectiveness of position denoising as self-supervised
+pre-training on equivariant GNNs. The three works share the similar idea that
+adds noise to the 3D atomic positions at equilibrium and let the GNN predict
+the noise [459, 461], or predict the original interatomic distances [460]. They
+have also shown that the positional denoising SSL objective is equivalent to the
+force field prediction from equilibrium structures. This sheds a light on leveraging equivariant GNNs for a wider range of applications like predicting potential
+energy surfaces and molecular dynamics simulations.
+2 https://www.rdkit.org/
+
+30
+Graph Neural Networks for Molecules
+Inspired by the success of CL, CL-based self-supervised methods have been
+introduced to molecular systems. Wang et al. [100] propose MolCLR, a CL framework for molecular representation learning with GNNs. To create contrastive
+pairs, MolCLR implements three molecule graph augmentation strategies: atom
+masking, bond deletion, and subgraph removal. A positive pair contains graphs
+augmented from the molecule while a negative pair contains those augmented
+from different molecules. MolCLR adapts the normalized temperature-scaled
+cross entropy (NT-Xent) loss from SimCLR [437], which is a modification of
+the InfoNCE loss. Given a batch of N molecules, each molecule generates two
+augmented graphs, and the NT-Xent loss for a positive pair (i, j) in the batch
+of 2N graphs is given in Equation 36.
+ℓi,j = −log
+exp((z⊤
+i zj)/τ)
+P2N
+k=1 1{k̸=i} exp((z⊤
+i zk)/τ)
+,
+(36)
+where 1{·} is an indicator function, and zi, zj are normalized representations of
+the positive pair. Zhang et al. [463] further propose MICRO-Graph which extracts informative subgraphs from molecules via GNNs and performs contrastive
+pre-training on sampled subgraphs learned by GNNs. Similar to non-contrastive
+learning methods, CL has also gone beyond 2D molecule graphs and applies
+multi-view CL pre-training. Liu et al. [457], Stärk et al. [458], and Li et al.
+[455] propose GraphMVP, 3D infomax, and GeomGCL, respectively. All three
+methods conduct contrastive pre-training between 2D topological graphs and
+3D geometric structures to learn molecular representations with 3D information
+embedded. Namely, 2D and 3D views from a molecule compose a positive pair
+while others are negative pairs. GraphMVP also utilizes a generative model in
+the representation domain as an auxiliary SSL task. Besides, Zhu et al. [464] develop a dual-view CL framework that contrasts between SMILES strings and 2D
+molecule graphs, where the former is encoded by a transformer and the latter
+is encoded by GNN. Further, MEMO from Zhu et al. [465] presents a multiview CL that leverages four molecular representations, including 2D topology,
+3D geometry, SMILES string, and fingerprint. Some works have sought to fuse
+chemical domain knowledge in molecular CL models to learn better representations. Following the insight, Wang et al. [466] introduce iMolCLR to improve
+previous CL frameworks in two aspects: (1) mitigating faulty negative instances
+via considering molecular similarities in NT-Xent loss, and (2) fragment-level
+contrasting between substructures decomposed via the BRICS algorithm. Fang
+et al. [467] propose a molecule cluster strategy that utilizes functional groups and
+fingerprints similarity to select similar molecules as positive pairs and dissimilar
+molecules as negative pairs in contrastive training. The work also includes functional group embeddings as an input to GNN. MoCL by Sun et al. [468] leverages
+local-level and global-level in contrastive learning on molecule graphs. Specifically, the local-level domain knowledge augments the molecule graph by replacing
+a substructure with a bioisostere which perturbs the instance while maintaining
+the chemical properties. The global-level domain knowledge introduces a loss
+that minimizes the difference between the similarity of learned representations
+
+Graph Neural Networks for Molecules
+31
+and ECFP similarity between two molecules. Fang et al. [469] propose knowledgeenhanced CL that includes graph augmentations based on the chemical element
+knowledge graph as well as the know-aware message-passing functions. In another model named CoSP, Gao et al., [470] leverage information besides small
+organic molecules to learn better representations. CoSP adapts a cross-domain
+CL framework that generates contrastive pairs from ligand molecules and protein binding pockets. It also introduces ChemInfoNCE loss to reduce the negative
+sampling bias through a chemical similarity-enhanced negative ligand sampling
+strategy.
+5
+Conclusion
+Recent years have witnessed an immense growth of graph neural networks in
+molecular sciences. In this survey, we review the generic message-passing framework for building graph neural networks. Graph neural network architectures
+designed for small organic molecules are introduced. Works on learning representations from 2D topological graphs as well as recent efforts in leveraging
+3D geometric information are covered. Also, we try to provide a comprehensive
+overview of benchmarks, metrics, and graph neural network models in various
+molecular applications, including property predictions, molecular scoring, and
+docking, molecular optimization and generation, molecular dynamics, synthesis
+planning, molecular knowledge graph, etc. The last section epitomizes molecular self-supervised learning with graph neural networks. Graph neural networks
+have been successfully implemented to solve a wide variety of molecular tasks.
+However, the acquisition of high-quality labeled molecular data is still expensive and time-consuming. One direction that is worth exploring is to introduce
+domain knowledge to molecular graph neural networks for solving challenging
+problems with limited or noisy data.
+References
+1.
+Bronstein, M. M., Bruna, J., LeCun, Y., Szlam, A. & Vandergheynst,
+P. Geometric deep learning: going beyond euclidean data. IEEE Signal
+Processing Magazine 34, 18–42 (2017).
+2.
+Dai, H., Kozareva, Z., Dai, B., Smola, A. & Song, L. Learning steadystates of iterative algorithms over graphs in International conference on
+machine learning (2018), 1106–1114.
+3.
+Fan, W., Ma, Y., Li, Q., He, Y., Zhao, E., Tang, J. & Yin, D. Graph neural
+networks for social recommendation in The world wide web conference
+(2019), 417–426.
+4.
+Wu, Y., Lian, D., Xu, Y., Wu, L. & Chen, E. Graph convolutional networks with markov random field reasoning for social spammer detection
+in Proceedings of the AAAI conference on artificial intelligence 34 (2020),
+1054–1061.
+
+32
+Graph Neural Networks for Molecules
+5.
+Duvenaud, D. K., Maclaurin, D., Iparraguirre, J., Bombarell, R., Hirzel,
+T., Aspuru-Guzik, A. & Adams, R. P. Convolutional networks on graphs
+for learning molecular fingerprints. Advances in neural information processing systems 28 (2015).
+6.
+Kearnes, S., McCloskey, K., Berndl, M., Pande, V. & Riley, P. Molecular graph convolutions: moving beyond fingerprints. Journal of computeraided molecular design 30, 595–608 (2016).
+7.
+Dumontier, M., Callahan, A., Cruz-Toledo, J., Ansell, P., Emonet, V.,
+Belleau, F. & Droit, A. Bio2RDF release 3: a larger connected network of
+linked data for the life sciences in Proceedings of the 2014 International
+Conference on Posters & Demonstrations Track 1272 (2014), 401–404.
+8.
+Hamaguchi, T., Oiwa, H., Shimbo, M. & Matsumoto, Y. Knowledge transfer for out-of-knowledge-base entities: A graph neural network approach.
+arXiv preprint arXiv:1706.05674 (2017).
+9.
+Sanchez-Gonzalez, A., Heess, N., Springenberg, J. T., Merel, J., Riedmiller, M., Hadsell, R. & Battaglia, P. Graph networks as learnable physics
+engines for inference and control in International Conference on Machine
+Learning (2018), 4470–4479.
+10.
+Thomas, N., Smidt, T., Kearnes, S., Yang, L., Li, L., Kohlhoff, K. & Riley, P. Tensor field networks: Rotation-and translation-equivariant neural
+networks for 3d point clouds. arXiv preprint arXiv:1802.08219 (2018).
+11.
+Fout, A., Byrd, J., Shariat, B. & Ben-Hur, A. Protein interface prediction using graph convolutional networks. Advances in neural information
+processing systems 30 (2017).
+12.
+Qi, X., Liao, R., Jia, J., Fidler, S. & Urtasun, R. 3d graph neural networks
+for rgbd semantic segmentation in Proceedings of the IEEE International
+Conference on Computer Vision (2017), 5199–5208.
+13.
+Wang, T., Liao, R., Ba, J. & Fidler, S. Nervenet: Learning structured
+policy with graph neural networks in International conference on learning
+representations (2018).
+14.
+LeCun, Y., Bengio, Y. & Hinton, G. Deep learning. Nature 521, 436–444
+(2015).
+15.
+Zhou, J., Cui, G., Hu, S., Zhang, Z., Yang, C., Liu, Z., Wang, L., Li, C.
+& Sun, M. Graph neural networks: A review of methods and applications.
+AI Open 1, 57–81 (2020).
+16.
+Wu, Z., Pan, S., Chen, F., Long, G., Zhang, C. & Philip, S. Y. A comprehensive survey on graph neural networks. IEEE transactions on neural
+networks and learning systems 32, 4–24 (2020).
+17.
+Krizhevsky, A., Sutskever, I. & Hinton, G. E. Imagenet classification with
+deep convolutional neural networks. Advances in neural information processing systems 25 (2012).
+18.
+He, K., Zhang, X., Ren, S. & Sun, J. Deep residual learning for image
+recognition in Proceedings of the IEEE conference on computer vision and
+pattern recognition (2016), 770–778.
+
+Graph Neural Networks for Molecules
+33
+19.
+Hochreiter, S. & Schmidhuber, J. Long short-term memory. Neural computation 9, 1735–1780 (1997).
+20.
+Chami, I., Abu-El-Haija, S., Perozzi, B., Ré, C. & Murphy, K. Machine
+learning on graphs: A model and comprehensive taxonomy. arXiv preprint
+arXiv:2005.03675, 1 (2020).
+21.
+You, J., Ying, Z. & Leskovec, J. Design space for graph neural networks. Advances in Neural Information Processing Systems 33, 17009–
+17021 (2020).
+22.
+Gilmer, J., Schoenholz, S. S., Riley, P. F., Vinyals, O. & Dahl, G. E. Neural
+message passing for quantum chemistry in International conference on
+machine learning (2017), 1263–1272.
+23.
+Battaglia, P. W., Hamrick, J. B., Bapst, V., Sanchez-Gonzalez, A., Zambaldi, V., Malinowski, M., Tacchetti, A., Raposo, D., Santoro, A., Faulkner,
+R., et al. Relational inductive biases, deep learning, and graph networks.
+arXiv preprint arXiv:1806.01261 (2018).
+24.
+Shuman, D. I., Narang, S. K., Frossard, P., Ortega, A. & Vandergheynst,
+P. The emerging field of signal processing on graphs: Extending highdimensional data analysis to networks and other irregular domains. IEEE
+signal processing magazine 30, 83–98 (2013).
+25.
+Li, Y., Tarlow, D., Brockschmidt, M. & Zemel, R. Gated graph sequence
+neural networks in (2016).
+26.
+Battaglia, P., Pascanu, R., Lai, M., Jimenez Rezende, D., et al. Interaction
+networks for learning about objects, relations and physics. Advances in
+neural information processing systems 29 (2016).
+27.
+Gao, H., Wang, Z. & Ji, S. Large-scale learnable graph convolutional networks in Proceedings of the 24th ACM SIGKDD international conference
+on knowledge discovery & data mining (2018), 1416–1424.
+28.
+Zhang, J., Shi, X., Xie, J., Ma, H., King, I. & Yeung, D.-Y. Gaan: Gated
+attention networks for learning on large and spatiotemporal graphs. arXiv
+preprint arXiv:1803.07294 (2018).
+29.
+Bruna, J., Zaremba, W., Szlam, A. & LeCun, Y. Spectral networks and
+locally connected networks on graphs. arXiv preprint arXiv:1312.6203
+(2013).
+30.
+Defferrard, M., Bresson, X. & Vandergheynst, P. Convolutional neural networks on graphs with fast localized spectral filtering. Advances in neural
+information processing systems 29 (2016).
+31.
+Kipf, T. N. & Welling, M. Semi-Supervised Classification with Graph Convolutional Networks in Proceedings of the International Conference on
+Learning Representations (2017).
+32.
+Maas, A. L., Hannun, A. Y. & Ng, A. Y. Rectifier nonlinearities improve
+neural network acoustic models in Proceedings of Machine Learning Research 30 (2013), 3.
+33.
+Hamilton, W., Ying, Z. & Leskovec, J. Inductive representation learning
+on large graphs. Advances in neural information processing systems 30
+(2017).
+
+34
+Graph Neural Networks for Molecules
+34.
+Xu, K., Hu, W., Leskovec, J. & Jegelka, S. How Powerful are Graph Neural Networks? in International Conference on Learning Representations
+(2019).
+35.
+Veličković, P., Cucurull, G., Casanova, A., Romero, A., Lio, P. & Bengio,
+Y. Graph attention networks. arXiv preprint arXiv:1710.10903 (2017).
+36.
+Cho, K., Van Merriënboer, B., Gulcehre, C., Bahdanau, D., Bougares,
+F., Schwenk, H. & Bengio, Y. Learning phrase representations using RNN
+encoder-decoder for statistical machine translation. arXiv preprint arXiv:1406.1078
+(2014).
+37.
+Tai, K. S., Socher, R. & Manning, C. D. Improved semantic representations from tree-structured long short-term memory networks. arXiv preprint
+arXiv:1503.00075 (2015).
+38.
+Peng, N., Poon, H., Quirk, C., Toutanova, K. & Yih, W.-t. Cross-sentence
+n-ary relation extraction with graph lstms. Transactions of the Association
+for Computational Linguistics 5, 101–115 (2017).
+39.
+Zayats, V. & Ostendorf, M. Conversation modeling on Reddit using a
+graph-structured LSTM. Transactions of the Association for Computational Linguistics 6, 121–132 (2018).
+40.
+Rampášek, L., Galkin, M., Dwivedi, V. P., Luu, A. T., Wolf, G. & Beaini,
+D. Recipe for a General, Powerful, Scalable Graph Transformer. arXiv
+preprint arXiv:2205.12454 (2022).
+41.
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez,
+A. N., Kaiser, Ł. & Polosukhin, I. Attention is all you need. Advances in
+neural information processing systems 30 (2017).
+42.
+Ying, C., Cai, T., Luo, S., Zheng, S., Ke, G., He, D., Shen, Y. & Liu, T.-Y.
+Do transformers really perform badly for graph representation? Advances
+in Neural Information Processing Systems 34, 28877–28888 (2021).
+43.
+Dwivedi, V. P. & Bresson, X. A generalization of transformer networks to
+graphs. arXiv preprint arXiv:2012.09699 (2020).
+44.
+Kim, J., Nguyen, T. D., Min, S., Cho, S., Lee, M., Lee, H. & Hong, S. Pure
+Transformers are Powerful Graph Learners. arXiv preprint arXiv:2207.02505
+(2022).
+45.
+Choromanski, K., Likhosherstov, V., Dohan, D., Song, X., Gane, A., Sarlos, T., Hawkins, P., Davis, J., Mohiuddin, A., Kaiser, L., et al. Rethinking
+attention with performers. arXiv preprint arXiv:2009.14794 (2020).
+46.
+Vinyals, O., Bengio, S. & Kudlur, M. Order matters: Sequence to sequence
+for sets. arXiv preprint arXiv:1511.06391 (2015).
+47.
+Zhang, M., Cui, Z., Neumann, M. & Chen, Y. An end-to-end deep learning
+architecture for graph classification in Proceedings of the AAAI conference
+on artificial intelligence 32 (2018).
+48.
+Ying, Z., You, J., Morris, C., Ren, X., Hamilton, W. & Leskovec, J. Hierarchical graph representation learning with differentiable pooling. Advances
+in neural information processing systems 31 (2018).
+49.
+Lee, J., Lee, I. & Kang, J. Self-attention graph pooling in International
+conference on machine learning (2019), 3734–3743.
+
+Graph Neural Networks for Molecules
+35
+50.
+Atz, K., Grisoni, F. & Schneider, G. Geometric deep learning on molecular
+representations. Nature Machine Intelligence 3, 1023–1032 (2021).
+51.
+Weininger, D. SMILES, a chemical language and information system. 1.
+Introduction to methodology and encoding rules. Journal of chemical information and computer sciences 28, 31–36 (1988).
+52.
+SMARTS - a language for describing molecular patterns Date access July
+30, 2022. https://www.daylight.com/dayhtml/doc/theory/theory.
+smarts.html.
+53.
+Krenn, M., Häse, F., Nigam, A., Friederich, P. & Aspuru-Guzik, A. Selfreferencing embedded strings (SELFIES): A 100% robust molecular string
+representation. Machine Learning: Science and Technology 1, 045024 (2020).
+54.
+Rogers, D. & Hahn, M. Extended-connectivity fingerprints. Journal of
+chemical information and modeling 50, 742–754 (2010).
+55.
+Durant, J. L., Leland, B. A., Henry, D. R. & Nourse, J. G. Reoptimization
+of MDL keys for use in drug discovery. Journal of chemical information
+and computer sciences 42, 1273–1280 (2002).
+56.
+Hu, W., Liu, B., Gomes, J., Zitnik, M., Liang, P., Pande, V. & Leskovec, J.
+Strategies for Pre-training Graph Neural Networks in International Conference on Learning Representations (2020).
+57.
+Yang, K., Swanson, K., Jin, W., Coley, C., Eiden, P., Gao, H., GuzmanPerez, A., Hopper, T., Kelley, B., Mathea, M., et al. Analyzing learned
+molecular representations for property prediction. Journal of chemical information and modeling 59, 3370–3388 (2019).
+58.
+Xiong, Z., Wang, D., Liu, X., Zhong, F., Wan, X., Li, X., Li, Z., Luo, X.,
+Chen, K., Jiang, H., et al. Pushing the boundaries of molecular representation for drug discovery with the graph attention mechanism. Journal of
+medicinal chemistry 63, 8749–8760 (2019).
+59.
+Rong, Y., Bian, Y., Xu, T., Xie, W., WEI, Y., Huang, W. & Huang,
+J. Self-Supervised Graph Transformer on Large-Scale Molecular Data in
+Advances in Neural Information Processing Systems 33 (2020), 12559–
+12571.
+60.
+Han, J., Rong, Y., Xu, T. & Huang, W. Geometrically equivariant graph
+neural networks: A survey. arXiv preprint arXiv:2202.07230 (2022).
+61.
+Blanco-Claraco, J. L. A tutorial on SE(3) transformation parameterizations and on-manifold optimization. arXiv preprint arXiv:2103.15980
+(2021).
+62.
+Schütt, K. T., Arbabzadah, F., Chmiela, S., Müller, K. R. & Tkatchenko,
+A. Quantum-chemical insights from deep tensor neural networks. Nature
+communications 8, 1–8 (2017).
+63.
+Schütt, K., Kindermans, P.-J., Sauceda Felix, H. E., Chmiela, S., Tkatchenko,
+A. & Müller, K.-R. Schnet: A continuous-filter convolutional neural network for modeling quantum interactions. Advances in neural information
+processing systems 30 (2017).
+
+36
+Graph Neural Networks for Molecules
+64.
+Unke, O. T. & Meuwly, M. PhysNet: A neural network for predicting
+energies, forces, dipole moments, and partial charges. Journal of chemical
+theory and computation 15, 3678–3693 (2019).
+65.
+Gasteiger, J., Groß, J. & Günnemann, S. Directional message passing for
+molecular graphs in International Conference on Learning Representations
+(2019).
+66.
+Klicpera, J., Giri, S., Margraf, J. T. & Günnemann, S. Fast and uncertaintyaware directional message passing for non-equilibrium molecules. arXiv
+preprint arXiv:2011.14115 (2020).
+67.
+Fang, X., Liu, L., Lei, J., He, D., Zhang, S., Zhou, J., Wang, F., Wu,
+H. & Wang, H. Geometry-enhanced molecular representation learning for
+property prediction. Nature Machine Intelligence 4, 127–134 (2022).
+68.
+Adams, K., Pattanaik, L. & Coley, C. W. Learning 3D Representations
+of Molecular Chirality with Invariance to Bond Rotations. arXiv preprint
+arXiv:2110.04383 (2021).
+69.
+Gilmore, R. Lie Groups, Physics, and Geometry: An Introduction for
+Physicists, Engineers and Chemists (Cambridge University Press, 2008).
+70.
+Fuchs, F., Worrall, D., Fischer, V. & Welling, M. Se (3)-transformers:
+3d roto-translation equivariant attention networks. Advances in Neural
+Information Processing Systems 33, 1970–1981 (2020).
+71.
+Brandstetter, J., Hesselink, R., van der Pol, E., Bekkers, E. J. & Welling,
+M. Geometric and Physical Quantities improve E(3) Equivariant Message
+Passing in International Conference on Learning Representations (2022).
+72.
+Anderson, B., Hy, T.-S. & Kondor, R. Cormorant: Covariant Molecular
+Neural Networks 2019. https://arxiv.org/abs/1906.04015.
+73.
+Schütt, K. T., Unke, O. T. & Gastegger, M. Equivariant message passing for the prediction of tensorial properties and molecular spectra 2021.
+https://arxiv.org/abs/2102.03150.
+74.
+Gasteiger, J., Groß, J. & Günnemann, S. Directional Message Passing for
+Molecular Graphs 2020. https://arxiv.org/abs/2003.03123.
+75.
+Thölke, P. & De Fabritiis, G. TorchMD-NET: Equivariant Transformers
+for Neural Network based Molecular Potentials. arXiv preprint arXiv:2202.02541
+(2022).
+76.
+Jing, B., Eismann, S., Suriana, P., Townshend, R. J. L. & Dror, R. Learning from Protein Structure with Geometric Vector Perceptrons in International Conference on Learning Representations (2021). https://openreview.
+net/forum?id=1YLJDvSx6J4.
+77.
+Villar, S., Hogg, D. W., Storey-Fisher, K., Yao, W. & Blum-Smith, B.
+Scalars are universal: Equivariant machine learning, structured like classical physics in Advances in Neural Information Processing Systems (eds
+Beygelzimer, A., Dauphin, Y., Liang, P. & Vaughan, J. W.) (2021). https:
+//openreview.net/forum?id=ba27-RzNaIv.
+78.
+Finzi, M., Stanton, S., Izmailov, P. & Wilson, A. G. Generalizing Convolutional Neural Networks for Equivariance to Lie Groups on Arbitrary
+Continuous Data 2020. https://arxiv.org/abs/2002.12880.
+
+Graph Neural Networks for Molecules
+37
+79.
+Hutchinson, M., Lan, C. L., Zaidi, S., Dupont, E., Teh, Y. W. & Kim, H.
+LieTransformer: Equivariant self-attention for Lie Groups 2020. https:
+//arxiv.org/abs/2012.10885.
+80.
+Gasteiger, J., Becker, F. & Günnemann, S. GemNet: Universal Directional
+Graph Neural Networks for Molecules 2021. https://arxiv.org/abs/
+2106.08903.
+81.
+Liu, Y., Wang, L., Liu, M., Zhang, X., Oztekin, B. & Ji, S. Spherical
+Message Passing for 3D Graph Networks 2021. https://arxiv.org/
+abs/2102.05013.
+82.
+Köhler, J., Klein, L. & Noé, F. Equivariant Flows: Exact Likelihood Generative Learning for Symmetric Densities 2020. https://arxiv.org/
+abs/2006.02425.
+83.
+Huang, W., Han, J., Rong, Y., Xu, T., Sun, F. & Huang, J. Equivariant
+Graph Mechanics Networks with Constraints in International Conference
+on Learning Representations (2022). https://openreview.net/forum?
+id=SHbhHHfePhP.
+84.
+Satorras, V. G., Hoogeboom, E. & Welling, M. E(n) Equivariant Graph
+Neural Networks 2021. https://arxiv.org/abs/2102.09844.
+85.
+Mater, A. C. & Coote, M. L. Deep learning in chemistry. Journal of chemical information and modeling 59, 2545–2559 (2019).
+86.
+Wieder, O., Kohlbacher, S., Kuenemann, M., Garon, A., Ducrot, P., Seidel, T. & Langer, T. A compact review of molecular property prediction
+with graph neural networks. Drug Discovery Today: Technologies 37, 1–
+12 (2020).
+87.
+Xiong, J., Xiong, Z., Chen, K., Jiang, H. & Zheng, M. Graph neural networks for automated de novo drug design. Drug Discovery Today 26,
+1382–1393 (2021).
+88.
+Coley, C. W., Barzilay, R., Green, W. H., Jaakkola, T. S. & Jensen,
+K. F. Convolutional embedding of attributed molecular graphs for physical property prediction. Journal of chemical information and modeling
+57, 1757–1772 (2017).
+89.
+Deng, D., Chen, X., Zhang, R., Lei, Z., Wang, X. & Zhou, F. XGraphBoost: extracting graph neural network-based features for a better prediction of molecular properties. Journal of chemical information and modeling 61, 2697–2705 (2021).
+90.
+Aldeghi, M., Graff, D. E., Frey, N., Morrone, J. A., Pyzer-Knapp, E. O.,
+Jordan, K. E. & Coley, C. W. Roughness of molecular property landscapes
+and its impact on modellability. arXiv preprint arXiv:2207.09250 (2022).
+91.
+Cao, Z., Liu, V. & Barati Farimani, A. Water desalination with twodimensional metal–organic framework membranes. Nano Letters 19, 8638–
+8643 (2019).
+92.
+Schwaller, P., Petraglia, R., Zullo, V., Nair, V. H., Haeuselmann, R. A.,
+Pisoni, R., Bekas, C., Iuliano, A. & Laino, T. Predicting retrosynthetic
+pathways using transformer-based models and a hyper-graph exploration
+strategy. Chemical science 11, 3316–3325 (2020).
+
+38
+Graph Neural Networks for Molecules
+93.
+Wu, Z., Ramsundar, B., Feinberg, E. N., Gomes, J., Geniesse, C., Pappu,
+A. S., Leswing, K. & Pande, V. MoleculeNet: a benchmark for molecular
+machine learning. Chemical science 9, 513–530 (2018).
+94.
+Dwivedi, V. P., Joshi, C. K., Laurent, T., Bengio, Y. & Bresson, X. Benchmarking graph neural networks. arXiv preprint arXiv:2003.00982 (2020).
+95.
+Irwin, J. J. & Shoichet, B. K. ZINC- a free database of commercially available compounds for virtual screening. Journal of chemical information and
+modeling 45, 177–182 (2005).
+96.
+Chen, G., Chen, P., Hsieh, C.-Y., Lee, C.-K., Liao, B., Liao, R., Liu, W.,
+Qiu, J., Sun, Q., Tang, J., et al. Alchemy: A quantum chemistry dataset
+for benchmarking ai models. arXiv preprint arXiv:1906.09427 (2019).
+97.
+Smith, J. S., Isayev, O. & Roitberg, A. E. ANI-1, A data set of 20 million
+calculated off-equilibrium conformations for organic molecules. Scientific
+data 4, 1–8 (2017).
+98.
+Sanchez-Lengeling, B., Wei, J. N., Lee, B. K., Gerkin, R. C., AspuruGuzik, A. & Wiltschko, A. B. Machine learning for scent: Learning generalizable perceptual representations of small molecules. arXiv preprint
+arXiv:1910.10685 (2019).
+99.
+Lei, Z., Dai, C. & Chen, B. Gas solubility in ionic liquids. Chemical reviews
+114, 1289–1326 (2014).
+100.
+Wang, Y., Wang, J., Cao, Z. & Barati Farimani, A. Molecular contrastive
+learning of representations via graph neural networks. Nature Machine
+Intelligence, 1–9 (2022).
+101.
+Debnath, A. K., Lopez de Compadre, R. L., Debnath, G., Shusterman,
+A. J. & Hansch, C. Structure-activity relationship of mutagenic aromatic
+and heteroaromatic nitro compounds. correlation with molecular orbital
+energies and hydrophobicity. Journal of medicinal chemistry 34, 786–797
+(1991).
+102.
+Kuhn, M., Letunic, I., Jensen, L. J. & Bork, P. The SIDER database of
+drugs and side effects. Nucleic acids research 44, D1075–D1079 (2016).
+103.
+Gayvert, K. M., Madhukar, N. S. & Elemento, O. A data-driven approach
+to predicting successes and failures of clinical trials. Cell chemical biology
+23, 1294–1301 (2016).
+104.
+Martins, I. F., Teixeira, A. L., Pinheiro, L. & Falcao, A. O. A Bayesian
+approach to in silico blood-brain barrier penetration modeling. Journal of
+chemical information and modeling 52, 1686–1697 (2012).
+105.
+Wale, N., Watson, I. A. & Karypis, G. Comparison of descriptor spaces
+for chemical compound retrieval and classification. Knowledge and Information Systems 14, 347–375 (2008).
+106.
+Tox21 Data Challenge 2014 https://tripod.nih.gov/tox21/challenge/.
+107.
+Richard, A. M., Judson, R. S., Houck, K. A., Grulke, C. M., Volarath, P.,
+Thillainadarajah, I., Yang, C., Rathman, J., Martin, M. T., Wambaugh,
+J. F., et al. ToxCast chemical landscape: paving the road to 21st century
+toxicology. Chemical research in toxicology 29, 1225–1251 (2016).
+
+Graph Neural Networks for Molecules
+39
+108.
+Subramanian, G., Ramsundar, B., Pande, V. & Denny, R. A. Computational modeling of β-secretase 1 (BACE-1) inhibitors using ligand based
+approaches. Journal of chemical information and modeling 56, 1936–1949
+(2016).
+109.
+Cortés-Ciriano, I. & Bender, A. KekuleScope: prediction of cancer cell
+line sensitivity and compound potency using convolutional neural networks trained on compound images. Journal of Cheminformatics 11, 1–
+16 (2019).
+110.
+Wang, R., Fang, X., Lu, Y. & Wang, S. The PDBbind database: Collection of binding affinities for protein- ligand complexes with known
+three-dimensional structures. Journal of medicinal chemistry 47, 2977–
+2980 (2004).
+111.
+Su, M., Yang, Q., Du, Y., Feng, G., Liu, Z., Li, Y. & Wang, R. Comparative assessment of scoring functions: the CASF-2016 update. Journal of
+chemical information and modeling 59, 895–913 (2018).
+112.
+AIDS antiviral screen data https : / / wiki . nci . nih . gov / display /
+NCIDTPdata/AIDS+Antiviral+Screen+Data.
+113.
+Rohrer, S. G. & Baumann, K. Maximum unbiased validation (MUV) data
+sets for virtual screening based on PubChem bioactivity data. Journal of
+chemical information and modeling 49, 169–184 (2009).
+114.
+Wang, Y., Xiao, J., Suzek, T. O., Zhang, J., Wang, J., Zhou, Z., Han,
+L., Karapetyan, K., Dracheva, S., Shoemaker, B. A., et al. PubChem’s
+BioAssay database. Nucleic acids research 40, D400–D412 (2012).
+115.
+Mobley, D. L. & Guthrie, J. P. FreeSolv: a database of experimental and
+calculated hydration free energies, with input files. Journal of computeraided molecular design 28, 711–720 (2014).
+116.
+Delaney, J. S. ESOL: estimating aqueous solubility directly from molecular structure. Journal of chemical information and computer sciences 44,
+1000–1005 (2004).
+117.
+Mendez, D., Gaulton, A., Bento, A. P., Chambers, J., De Veij, M., Félix,
+E., Magariños, M. P., Mosquera, J. F., Mutowo, P., Nowotka, M., et al.
+ChEMBL: towards direct deposition of bioassay data. Nucleic acids research 47, D930–D940 (2019).
+118.
+Sorkun, M. C., Khetan, A. & Er, S. AqSolDB, a curated reference set
+of aqueous solubility and 2D descriptors for a diverse set of compounds.
+Scientific data 6, 1–8 (2019).
+119.
+Rupp, M., Tkatchenko, A., Müller, K.-R. & Von Lilienfeld, O. A. Fast
+and accurate modeling of molecular atomization energies with machine
+learning. Physical review letters 108, 058301 (2012).
+120.
+Montavon, G., Rupp, M., Gobre, V., Vazquez-Mayagoitia, A., Hansen, K.,
+Tkatchenko, A., Müller, K.-R. & von Lilienfeld, O. A. Machine learning of
+molecular electronic properties in chemical compound space. New Journal
+of Physics 15, 095003 (2013).
+121.
+Ruddigkeit, L., Van Deursen, R., Blum, L. C. & Reymond, J.-L. Enumeration of 166 billion organic small molecules in the chemical universe
+
+40
+Graph Neural Networks for Molecules
+database GDB-17. Journal of chemical information and modeling 52,
+2864–2875 (2012).
+122.
+Ramakrishnan, R., Dral, P. O., Rupp, M. & von Lilienfeld, O. A. Quantum
+chemistry structures and properties of 134 kilo molecules. Scientific Data
+1 (2014).
+123.
+Hu, W., Fey, M., Zitnik, M., Dong, Y., Ren, H., Liu, B., Catasta, M. &
+Leskovec, J. Open graph benchmark: Datasets for machine learning on
+graphs. Advances in neural information processing systems 33, 22118–
+22133 (2020).
+124.
+Henaff, M., Bruna, J. & LeCun, Y. Deep convolutional networks on graphstructured data. arXiv preprint arXiv:1506.05163 (2015).
+125.
+Li, R., Wang, S., Zhu, F. & Huang, J. Adaptive graph convolutional neural
+networks in Proceedings of the AAAI conference on artificial intelligence
+32 (2018).
+126.
+Liao, R., Zhao, Z., Urtasun, R. & Zemel, R. S. Lanczosnet: Multi-scale
+deep graph convolutional networks. arXiv preprint arXiv:1901.01484 (2019).
+127.
+Ma, Y., Wang, S., Aggarwal, C. C. & Tang, J. Graph convolutional networks with eigenpooling in Proceedings of the 25th ACM SIGKDD international conference on knowledge discovery & data mining (2019), 723–
+731.
+128.
+Xu, Y., Pei, J. & Lai, L. Deep learning based regression and multiclass
+models for acute oral toxicity prediction with automatic chemical feature
+extraction. Journal of chemical information and modeling 57, 2672–2685
+(2017).
+129.
+Li, J., Cai, D. & He, X. Learning graph-level representation for drug discovery. arXiv preprint arXiv:1709.03741 (2017).
+130.
+Wang, X., Li, Z., Jiang, M., Wang, S., Zhang, S. & Wei, Z. Molecule
+property prediction based on spatial graph embedding. Journal of chemical information and modeling 59, 3817–3828 (2019).
+131.
+Cho, H. & Choi, I. S. Enhanced Deep-Learning Prediction of Molecular Properties via Augmentation of Bond Topology. ChemMedChem 14,
+1604–1609 (2019).
+132.
+Feinberg, E. N., Joshi, E., Pande, V. S. & Cheng, A. C. Improvement in
+ADMET prediction with multitask deep featurization. Journal of medicinal chemistry 63, 8835–8848 (2020).
+133.
+Altae-Tran, H., Ramsundar, B., Pappu, A. S. & Pande, V. Low data drug
+discovery with one-shot learning. ACS central science 3, 283–293 (2017).
+134.
+Ryu, S., Lim, J., Hong, S. H. & Kim, W. Y. Deeply learning molecular structure-property relationships using attention-and gate-augmented
+graph convolutional network. arXiv preprint arXiv:1805.10988 (2018).
+135.
+Shindo, H. & Matsumoto, Y. Gated graph recursive neural networks for
+molecular property prediction. arXiv preprint arXiv:1909.00259 (2019).
+136.
+Withnall, M., Lindelöf, E., Engkvist, O. & Chen, H. Building attention
+and edge message passing neural networks for bioactivity and physical–
+chemical property prediction. Journal of cheminformatics 12, 1–18 (2020).
+
+Graph Neural Networks for Molecules
+41
+137.
+Tang, B., Kramer, S. T., Fang, M., Qiu, Y., Wu, Z. & Xu, D. A selfattention based message passing neural network for predicting molecular
+lipophilicity and aqueous solubility. Journal of cheminformatics 12, 1–9
+(2020).
+138.
+Ma, H., Bian, Y., Rong, Y., Huang, W., Xu, T., Xie, W., Ye, G. & Huang,
+J. Multi-view graph neural networks for molecular property prediction.
+arXiv preprint arXiv:2005.13607 (2020).
+139.
+Smith, J. S., Isayev, O. & Roitberg, A. E. ANI-1: an extensible neural
+network potential with DFT accuracy at force field computational cost.
+Chemical science 8, 3192–3203 (2017).
+140.
+Butler, K. T., Davies, D. W., Cartwright, H., Isayev, O. & Walsh, A.
+Machine learning for molecular and materials science. Nature 559, 547–
+555 (2018).
+141.
+Zhang, L., Han, J., Wang, H., Car, R. & Weinan, E. Deep potential molecular dynamics: a scalable model with the accuracy of quantum mechanics.
+Physical review letters 120, 143001 (2018).
+142.
+Lubbers, N., Smith, J. S. & Barros, K. Hierarchical modeling of molecular
+energies using a deep neural network. The Journal of chemical physics
+148, 241715 (2018).
+143.
+Lu, C., Liu, Q., Wang, C., Huang, Z., Lin, P. & He, L. Molecular property prediction: A multilevel quantum interactions modeling perspective in
+Proceedings of the AAAI Conference on Artificial Intelligence 33 (2019),
+1052–1060.
+144.
+Anderson, B., Hy, T. S. & Kondor, R. Cormorant: Covariant molecular
+neural networks. Advances in neural information processing systems 32
+(2019).
+145.
+Liu, Y., Wang, L., Liu, M., Zhang, X., Oztekin, B. & Ji, S. Spherical
+message passing for 3d graph networks. arXiv preprint arXiv:2102.05013
+(2021).
+146.
+Qiao, Z., Welborn, M., Anandkumar, A., Manby, F. R. & Miller III,
+T. F. OrbNet: Deep learning for quantum chemistry using symmetryadapted atomic-orbital features. The Journal of chemical physics 153,
+124111 (2020).
+147.
+Karamad, M., Magar, R., Shi, Y., Siahrostami, S., Gates, I. D. & Farimani,
+A. B. Orbital graph convolutional neural network for material property
+prediction. Physical Review Materials 4, 093801 (2020).
+148.
+Qiao, Z., Christensen, A. S., Welborn, M., Manby, F. R., Anandkumar,
+A. & Miller III, T. F. Informing geometric deep learning with electronic
+interactions to accelerate quantum chemistry. Proceedings of the National
+Academy of Sciences 119, e2205221119 (2022).
+149.
+Boiko, D., Reschützegger, T., Sanchez-Lengeling, B., Blau, S. & Gomes,
+G. Stereoelectronics-Aware Molecular Representation Learning (2022).
+150.
+Satorras, V. G., Hoogeboom, E. & Welling, M. E(n) equivariant graph
+neural networks in International conference on machine learning (2021),
+9323–9332.
+
+42
+Graph Neural Networks for Molecules
+151.
+Hutchinson, M. J., Le Lan, C., Zaidi, S., Dupont, E., Teh, Y. W. & Kim, H.
+Lietransformer: Equivariant self-attention for lie groups in International
+Conference on Machine Learning (2021), 4533–4543.
+152.
+Miller, B. K., Geiger, M., Smidt, T. E. & Noé, F. Relevance of rotationally equivariant convolutions for predicting molecular properties. arXiv
+preprint arXiv:2008.08461 (2020).
+153.
+Gasteiger, J., Becker, F. & Günnemann, S. Gemnet: Universal directional
+graph neural networks for molecules. Advances in Neural Information Processing Systems 34, 6790–6802 (2021).
+154.
+Schütt, K., Unke, O. & Gastegger, M. Equivariant message passing for the
+prediction of tensorial properties and molecular spectra in International
+Conference on Machine Learning (2021), 9377–9388.
+155.
+Chmiela, S., Tkatchenko, A., Sauceda, H. E., Poltavsky, I., Schütt, K. T.
+& Müller, K.-R. Machine learning of accurate energy-conserving molecular
+force fields. Science advances 3, e1603015 (2017).
+156.
+Hermann, J., Schätzle, Z. & Noé, F. Deep-neural-network solution of the
+electronic Schrödinger equation. Nature Chemistry 12, 891–897 (2020).
+157.
+Gao, N. & Günnemann, S. Ab-initio potential energy surfaces by pairing GNNs with neural wave functions. arXiv preprint arXiv:2110.05064
+(2021).
+158.
+Stepniewska-Dziubinska, M. M., Zielenkiewicz, P. & Siedlecki, P. Development and evaluation of a deep learning model for protein–ligand binding
+affinity prediction. Bioinformatics 34, 3666–3674 (2018).
+159.
+McNutt, A. T., Francoeur, P., Aggarwal, R., Masuda, T., Meli, R., Ragoza,
+M., Sunseri, J. & Koes, D. R. GNINA 1.0: molecular docking with deep
+learning. Journal of cheminformatics 13, 1–20 (2021).
+160.
+Yang, L., Yang, G., Chen, X., Yang, Q., Yao, X., Bing, Z., Niu, Y., Huang,
+L. & Yang, L. Deep scoring neural network replacing the scoring function components to improve the performance of structure-based molecular
+docking. ACS Chemical Neuroscience 12, 2133–2142 (2021).
+161.
+Bao, J., He, X. & Zhang, J. Z. DeepBSP—a machine learning method
+for accurate prediction of protein–ligand docking structures. Journal of
+Chemical Information and Modeling 61, 2231–2240 (2021).
+162.
+Yadav, P., Mollaei, P., Cao, Z., Wang, Y. & Farimani, A. B. Prediction
+of GPCR activity using Machine Learning. Computational and Structural
+Biotechnology Journal (2022).
+163.
+Wang, R., Fang, X., Lu, Y., Yang, C.-Y. & Wang, S. The PDBbind
+database: methodologies and updates. Journal of medicinal chemistry 48,
+4111–4119 (2005).
+164.
+Liu, Z., Su, M., Han, L., Liu, J., Yang, Q., Li, Y. & Wang, R. Forging the
+basis for developing protein–ligand interaction scoring functions. Accounts
+of chemical research 50, 302–309 (2017).
+165.
+Mysinger, M. M., Carchia, M., Irwin, J. J. & Shoichet, B. K. Directory
+of useful decoys, enhanced (DUD-E): better ligands and decoys for better
+benchmarking. Journal of medicinal chemistry 55, 6582–6594 (2012).
+
+Graph Neural Networks for Molecules
+43
+166.
+Liu, T., Lin, Y., Wen, X., Jorissen, R. N. & Gilson, M. K. BindingDB:
+a web-accessible database of experimentally determined protein–ligand
+binding affinities. Nucleic acids research 35, D198–D201 (2007).
+167.
+Gilson, M. K., Liu, T., Baitaluk, M., Nicola, G., Hwang, L. & Chong, J.
+BindingDB in 2015: a public database for medicinal chemistry, computational chemistry and systems pharmacology. Nucleic acids research 44,
+D1045–D1053 (2016).
+168.
+Wishart, D. S., Knox, C., Guo, A. C., Shrivastava, S., Hassanali, M.,
+Stothard, P., Chang, Z. & Woolsey, J. DrugBank: a comprehensive resource for in silico drug discovery and exploration. Nucleic acids research
+34, D668–D672 (2006).
+169.
+Wishart, D. S., Knox, C., Guo, A. C., Cheng, D., Shrivastava, S., Tzur, D.,
+Gautam, B. & Hassanali, M. DrugBank: a knowledgebase for drugs, drug
+actions and drug targets. Nucleic acids research 36, D901–D906 (2008).
+170.
+Gao, K. Y., Fokoue, A., Luo, H., Iyengar, A., Dey, S., Zhang, P., et al.
+Interpretable Drug Target Prediction Using Deep Neural Representation.
+in IJCAI 2018 (2018), 3371–3377.
+171.
+Zheng, S., Li, Y., Chen, S., Xu, J. & Yang, Y. Predicting drug-protein
+interaction using quasi-visual question answering system. Nature Machine
+Intelligence 2, 134–140 (2020).
+172.
+Lim, S., Lu, Y., Cho, C. Y., Sung, I., Kim, J., Kim, Y., Park, S. & Kim,
+S. A review on compound-protein interaction prediction methods: data,
+format, representation and model. Computational and Structural Biotechnology Journal 19, 1541–1556 (2021).
+173.
+Karimi, M., Wu, D., Wang, Z. & Shen, Y. DeepAffinity: interpretable
+deep learning of compound–protein affinity through unified recurrent and
+convolutional neural networks. Bioinformatics 35, 3329–3338 (2019).
+174.
+Li, H., Lu, G., Sze, K.-H., Su, X., Chan, W.-Y. & Leung, K.-S. Machinelearning scoring functions trained on complexes dissimilar to the test set
+already outperform classical counterparts on a blind benchmark. Briefings
+in bioinformatics 22, bbab225 (2021).
+175.
+Li, S., Zhou, J., Xu, T., Huang, L., Wang, F., Xiong, H., Huang, W.,
+Dou, D. & Xiong, H. Structure-aware interactive graph neural networks
+for the prediction of protein-ligand binding affinity in Proceedings of the
+27th ACM SIGKDD Conference on Knowledge Discovery & Data Mining
+(2021), 975–985.
+176.
+Feinberg, E. N., Sur, D., Wu, Z., Husic, B. E., Mai, H., Li, Y., Sun,
+S., Yang, J., Ramsundar, B. & Pande, V. S. PotentialNet for molecular
+property prediction. ACS central science 4, 1520–1530 (2018).
+177.
+Gomes, J., Ramsundar, B., Feinberg, E. N. & Pande, V. S. Atomic convolutional networks for predicting protein-ligand binding affinity. arXiv
+preprint arXiv:1703.10603 (2017).
+178.
+Lim, J., Ryu, S., Park, K., Choe, Y. J., Ham, J. & Kim, W. Y. Predicting drug–target interaction using a novel graph neural network with 3D
+
+44
+Graph Neural Networks for Molecules
+structure-embedded graph representation. Journal of chemical information and modeling 59, 3981–3988 (2019).
+179.
+Jiang, D., Hsieh, C.-Y., Wu, Z., Kang, Y., Wang, J., Wang, E., Liao, B.,
+Shen, C., Xu, L., Wu, J., et al. Interactiongraphnet: A novel and efficient
+deep graph representation learning framework for accurate protein–ligand
+interaction predictions. Journal of medicinal chemistry 64, 18209–18232
+(2021).
+180.
+Morrone, J. A., Weber, J. K., Huynh, T., Luo, H. & Cornell, W. D.
+Combining docking pose rank and structure with deep learning improves
+protein–ligand binding mode prediction over a baseline docking approach.
+Journal of chemical information and modeling 60, 4170–4179 (2020).
+181.
+Son, J. & Kim, D. Development of a graph convolutional neural network
+model for efficient prediction of protein-ligand binding affinities. PloS one
+16, e0249404 (2021).
+182.
+Knutson, C., Bontha, M., Bilbrey, J. A. & Kumar, N. Decoding the
+protein–ligand interactions using parallel graph neural networks. Scientific reports 12, 1–14 (2022).
+183.
+Torng, W. & Altman, R. B. Graph convolutional neural networks for
+predicting drug-target interactions. Journal of chemical information and
+modeling 59, 4131–4149 (2019).
+184.
+Nguyen, T., Le, H., Quinn, T. P., Nguyen, T., Le, T. D. & Venkatesh,
+S. GraphDTA: Predicting drug–target binding affinity with graph neural
+networks. Bioinformatics 37, 1140–1147 (2021).
+185.
+Moesser, M. A., Klein, D., Boyles, F., Deane, C. M., Baxter, A. & Morris,
+G. M. Protein-Ligand Interaction Graphs: Learning from Ligand-Shaped
+3D Interaction Graphs to Improve Binding Affinity Prediction. bioRxiv
+(2022).
+186.
+Wang, J., Li, X. & Zhang, H. GNN-PT: enhanced prediction of compoundprotein interactions by integrating protein transformer. arXiv preprint
+arXiv:2009.00805 (2020).
+187.
+Wang, P., Zheng, S., Jiang, Y., Li, C., Liu, J., Wen, C., Patronov, A.,
+Qian, D., Chen, H. & Yang, Y. Structure-aware multimodal deep learning
+for drug–protein interaction prediction. Journal of chemical information
+and modeling 62, 1308–1317 (2022).
+188.
+Yang, Z., Zhong, W., Zhao, L. & Chen, C. Y.-C. MGraphDTA: deep multiscale graph neural network for explainable drug–target binding affinity
+prediction. Chemical science 13, 816–833 (2022).
+189.
+Lengauer, T. & Rarey, M. Computational methods for biomolecular docking. Current opinion in structural biology 6, 402–406 (1996).
+190.
+Kitchen, D. B., Decornez, H., Furr, J. R. & Bajorath, J. Docking and
+scoring in virtual screening for drug discovery: methods and applications.
+Nature reviews Drug discovery 3, 935–949 (2004).
+191.
+Ciemny, M., Kurcinski, M., Kamel, K., Kolinski, A., Alam, N., SchuelerFurman, O. & Kmiecik, S. Protein-peptide docking: opportunities and
+challenges. Drug discovery today 23, 1530–1537 (2018).
+
+Graph Neural Networks for Molecules
+45
+192.
+Erickson, J. A., Jalaie, M., Robertson, D. H., Lewis, R. A. & Vieth, M.
+Lessons in molecular recognition: the effects of ligand and protein flexibility on molecular docking accuracy. Journal of medicinal chemistry 47,
+45–55 (2004).
+193.
+Wang, Z., Sun, H., Yao, X., Li, D., Xu, L., Li, Y., Tian, S. & Hou, T. Comprehensive evaluation of ten docking programs on a diverse set of protein–
+ligand complexes: the prediction accuracy of sampling power and scoring
+power. Physical Chemistry Chemical Physics 18, 12964–12975 (2016).
+194.
+Ganea, O.-E., Huang, X., Bunne, C., Bian, Y., Barzilay, R., Jaakkola, T.
+& Krause, A. Independent se (3)-equivariant models for end-to-end rigid
+protein docking. arXiv preprint arXiv:2111.07786 (2021).
+195.
+Garcıéa-Ortegón, M., Simm, G. N., Tripp, A. J., Hernández-Lobato, J. M.,
+Bender, A. & Bacallado, S. DOCKSTRING: easy molecular docking yields
+better benchmarks for ligand design. Journal of Chemical Information and
+Modeling (2021).
+196.
+Jin, W., Barzilay, R. & Jaakkola, T. Antibody-Antigen Docking and Design via Hierarchical Equivariant Refinement. arXiv preprint arXiv:2207.06616
+(2022).
+197.
+Shen, C., Zhang, X., Deng, Y., Gao, J., Wang, D., Xu, L., Pan, P., Hou,
+T. & Kang, Y. Boosting Protein–Ligand Binding Pose Prediction and
+Virtual Screening Based on Residue–Atom Distance Likelihood Potential
+and Graph Transformer. Journal of Medicinal Chemistry (2022).
+198.
+Jiang, H., Wang, J., Cong, W., Huang, Y., Ramezani, M., Sarma, A.,
+Dokholyan, N. V., Mahdavi, M. & Kandemir, M. T. Predicting Protein–
+Ligand Docking Structure with Graph Neural Network. Journal of Chemical Information and Modeling 62, 2923–2932 (2022).
+199.
+Méndez-Lucio, O., Ahmad, M., del Rio-Chanona, E. A. & Wegner, J. K.
+A geometric deep learning approach to predict binding conformations of
+bioactive molecules. Nature Machine Intelligence 3, 1033–1039 (2021).
+200.
+Klebe, G. & Mietzner, T. A fast and efficient method to generate biologically relevant conformations. Journal of Computer-Aided Molecular
+Design 8, 583–606 (1994).
+201.
+Li, L. & Cai, M. Drug target prediction by multi-view low rank embedding.
+IEEE/ACM transactions on computational biology and bioinformatics 16,
+1712–1721 (2017).
+202.
+Dai, B. & Bailey-Kellogg, C. Protein interaction interface region prediction
+by geometric deep learning. Bioinformatics 37, 2580–2588 (2021).
+203.
+Sverrisson, F., Feydy, J., Southern, J., Bronstein, M. M. & Correia, B.
+Physics-informed deep neural network for rigid-body protein docking in
+ICLR2022 Machine Learning for Drug Discovery (2022).
+204.
+Zong, N., Li, N., Wen, A., Ngo, V., Yu, Y., Huang, M., Chowdhury, S.,
+Jiang, C., Fu, S., Weinshilboum, R., et al. BETA: a comprehensive benchmark for computational drug–target prediction. Briefings in Bioinformatics (2022).
+
+46
+Graph Neural Networks for Molecules
+205.
+Stärk, H., Ganea, O., Pattanaik, L., Barzilay, R. & Jaakkola, T. Equibind:
+Geometric deep learning for drug binding structure prediction in International Conference on Machine Learning (2022), 20503–20521.
+206.
+Lu, W., Wu, Q., Zhang, J., Rao, J., Li, C. & Zheng, S. TANKBind:
+Trigonometry-Aware Neural NetworKs for Drug-Protein Binding Structure Prediction. bioRxiv (2022).
+207.
+Hollingsworth, S. A. & Dror, R. O. Molecular Dynamics Simulation for All.
+Neuron 99, 1129–1143. issn: 0896-6273. https://www.sciencedirect.
+com/science/article/pii/S0896627318306846 (2018).
+208.
+Karplus, M. & McCammon, J. A. Molecular dynamics simulations of
+biomolecules. Nature Structural Biology 9, 646–652. issn: 1545-9985. https:
+//doi.org/10.1038/nsb0902-646 (2002).
+209.
+De Vivo, M., Masetti, M., Bottegoni, G. & Cavalli, A. Role of Molecular
+Dynamics and Related Methods in Drug Discovery. Journal of Medicinal
+Chemistry 59. PMID: 26807648, 4035–4061. eprint: https://doi.org/
+10.1021/acs.jmedchem.5b01684. https://doi.org/10.1021/acs.
+jmedchem.5b01684 (2016).
+210.
+Becke, A. D. Perspective: Fifty years of density-functional theory in chemical physics. The Journal of Chemical Physics 140, 18A301. eprint: https:
+//doi.org/10.1063/1.4869598. https://doi.org/10.1063/1.
+4869598 (2014).
+211.
+Harrison, J. A., Schall, J. D., Maskey, S., Mikulski, P. T., Knippenberg,
+M. T. & Morrow, B. H. Review of force fields and intermolecular potentials used in atomistic computational materials research. Applied Physics
+Reviews 5, 031104. eprint: https://doi.org/10.1063/1.5020808.
+https://doi.org/10.1063/1.5020808 (2018).
+212.
+Bartók, A. P., De, S., Poelking, C., Bernstein, N., Kermode, J. R., Csányi,
+G. & Ceriotti, M. Machine learning unifies the modeling of materials and
+molecules. Science Advances 3. eprint: https://advances.sciencemag.
+org/content/3/12/e1701816.full.pdf. https://advances.sciencemag.
+org/content/3/12/e1701816 (2017).
+213.
+Deringer, V. L., Caro, M. A. & Csányi, G. Machine Learning Interatomic
+Potentials as Emerging Tools for Materials Science. Advanced Materials
+31, 1902765. eprint: https://onlinelibrary.wiley.com/doi/pdf/10.
+1002/adma.201902765. https://onlinelibrary.wiley.com/doi/abs/
+10.1002/adma.201902765 (2019).
+214.
+Gkeka, P., Stoltz, G., Barati Farimani, A., Belkacemi, Z., Ceriotti, M.,
+Chodera, J. D., Dinner, A. R., Ferguson, A. L., Maillet, J.-B., Minoux,
+H., Peter, C., Pietrucci, F., Silveira, A., Tkatchenko, A., Trstanova, Z.,
+Wiewiora, R. & Lelièvre, T. Machine Learning Force Fields and CoarseGrained Variables in Molecular Dynamics: Application to Materials and
+Biological Systems. Journal of Chemical Theory and Computation 16.
+PMID: 32559068, 4757–4775. eprint: https://doi.org/10.1021/acs.
+jctc.0c00355. https://doi.org/10.1021/acs.jctc.0c00355 (2020).
+
+Graph Neural Networks for Molecules
+47
+215.
+Noé, F., Tkatchenko, A., Müller, K.-R. & Clementi, C. Machine Learning for Molecular Simulation. Annual Review of Physical Chemistry 71.
+PMID: 32092281, 361–390. eprint: https://doi.org/10.1146/annurevphyschem - 042018 - 052331. https : / / doi . org / 10 . 1146 / annurev -
+physchem-042018-052331 (2020).
+216.
+Chen, C., Ye, W., Zuo, Y., Zheng, C. & Ong, S. P. Graph Networks
+as a Universal Machine Learning Framework for Molecules and Crystals.
+Chemistry of Materials 31, 3564–3572. eprint: https://doi.org/10.
+1021/acs.chemmater.9b01294. https://doi.org/10.1021/acs.
+chemmater.9b01294 (2019).
+217.
+Li, Y., Li, H., Pickard, F. C., Narayanan, B., Sen, F. G., Chan, M. K. Y.,
+Sankaranarayanan, S. K. R. S., Brooks, B. R. & Roux, B. Machine Learning Force Field Parameters from Ab Initio Data. Journal of Chemical
+Theory and Computation 13. PMID: 28800233, 4492–4503. eprint: https:
+//doi.org/10.1021/acs.jctc.7b00521. https://doi.org/10.1021/
+acs.jctc.7b00521 (2017).
+218.
+Christensen, A. S., Bratholm, L. A., Faber, F. A. & Anatole von Lilienfeld,
+O. FCHL revisited: Faster and more accurate quantum machine learning.
+The Journal of Chemical Physics 152, 044107. eprint: https://doi.org/
+10.1063/1.5126701. https://doi.org/10.1063/1.5126701 (2020).
+219.
+Zhang, L., Han, J., Wang, H., Car, R. & E, W. Deep Potential Molecular
+Dynamics: A Scalable Model with the Accuracy of Quantum Mechanics.
+Phys. Rev. Lett. 120, 143001. https://link.aps.org/doi/10.1103/
+PhysRevLett.120.143001 (14 2018).
+220.
+Carbogno, C., Behler, J., Groß, A. & Reuter, K. Fingerprints for SpinSelection Rules in the Interaction Dynamics of O2 at Al(111). Phys. Rev.
+Lett. 101, 096104. https://link.aps.org/doi/10.1103/PhysRevLett.
+101.096104 (9 2008).
+221.
+Behler, J. Atom-centered symmetry functions for constructing high-dimensional
+neural network potentials. The Journal of Chemical Physics 134, 074106.
+eprint: https://doi.org/10.1063/1.3553717. https://doi.org/10.
+1063/1.3553717 (2011).
+222.
+Behler, J. & Parrinello, M. Generalized Neural-Network Representation of
+High-Dimensional Potential-Energy Surfaces. Phys. Rev. Lett. 98, 146401.
+https://link.aps.org/doi/10.1103/PhysRevLett.98.146401 (14
+2007).
+223.
+Behler, J. First Principles Neural Network Potentials for Reactive Simulations of Large Molecular and Condensed Systems. Angewandte Chemie
+International Edition 56, 12828–12840. eprint: https://onlinelibrary.
+wiley.com/doi/pdf/10.1002/anie.201703114. https://onlinelibrary.
+wiley.com/doi/abs/10.1002/anie.201703114 (2017).
+224.
+Zubatyuk, R., Smith, J. S., Leszczynski, J. & Isayev, O. Accurate and
+transferable multitask prediction of chemical properties with an atoms-inmolecules neural network. Science advances 5, eaav6490 (2019).
+
+48
+Graph Neural Networks for Molecules
+225.
+Behler, J. Perspective: Machine learning potentials for atomistic simulations. The Journal of Chemical Physics 145, 170901. eprint: https://
+doi.org/10.1063/1.4966192. https://doi.org/10.1063/1.4966192
+(2016).
+226.
+Rupp, M., Tkatchenko, A., Müller, K.-R. & von Lilienfeld, O. A. Fast
+and Accurate Modeling of Molecular Atomization Energies with Machine
+Learning. Phys. Rev. Lett. 108, 058301 (5 2012).
+227.
+Zhang, L., Han, J., Wang, H., Car, R. & E, W. Deep Potential Molecular
+Dynamics: A Scalable Model with the Accuracy of Quantum Mechanics.
+Phys. Rev. Lett. 120, 143001. https://link.aps.org/doi/10.1103/
+PhysRevLett.120.143001 (14 2018).
+228.
+Hu, W., Shuaibi, M., Das, A., Goyal, S., Sriram, A., Leskovec, J., Parikh,
+D. & Zitnick, C. L. ForceNet: A Graph Neural Network for Large-Scale
+Quantum Calculations 2021. https://arxiv.org/abs/2103.01436.
+229.
+Mailoa, J. P., Kornbluth, M., Batzner, S., Samsonidze, G., Lam, S. T.,
+Vandermause, J., Ablitt, C., Molinari, N. & Kozinsky, B. A fast neural network approach for direct covariant forces prediction in complex
+multi-element extended systems. Nature Machine Intelligence 1, 471–479.
+https://doi.org/10.1038%2Fs42256-019-0098-0 (2019).
+230.
+Park, C. W., Kornbluth, M., Vandermause, J., Wolverton, C., Kozinsky,
+B. & Mailoa, J. Accurate and scalable graph neural network force field
+and molecular dynamics with direct force architecture. npj Computational
+Materials 7 (2021).
+231.
+Li, Z., Meidani, K., Yadav, P. & Barati Farimani, A. Graph neural networks accelerated molecular dynamics. The Journal of Chemical Physics
+156, 144103 (2022).
+232.
+Wu, F., Zhang, Q., Jin, X., Jiang, Y. & Li, S. Z. A Score-based Geometric
+Model for Molecular Dynamics Simulations 2022. https://arxiv.org/
+abs/2204.08672.
+233.
+Fu, X., Xie, T., Rebello, N. J., Olsen, B. D. & Jaakkola, T. Simulate Timeintegrated Coarse-grained Molecular Dynamics with Geometric Machine
+Learning 2022. https://arxiv.org/abs/2204.10348.
+234.
+Noé, F., Olsson, S., Köhler, J. & Wu, H. Boltzmann Generators – Sampling Equilibrium States of Many-Body Systems with Deep Learning 2018.
+https://arxiv.org/abs/1812.01729.
+235.
+Mahmoud, A. H., Masters, M., Lee, S. J. & Lill, M. A. Accurate Sampling of Macromolecular Conformations Using Adaptive Deep Learning
+and Coarse-Grained Representation. Journal of Chemical Information and
+Modeling 62. PMID: 35352898, 1602–1617. eprint: https://doi.org/
+10.1021/acs.jcim.1c01438. https://doi.org/10.1021/acs.jcim.
+1c01438 (2022).
+236.
+Elton, D. C., Boukouvalas, Z., Fuge, M. D. & Chung, P. W. Deep learning
+for molecular design—a review of the state of the art. Molecular Systems
+Design & Engineering 4, 828–849 (2019).
+
+Graph Neural Networks for Molecules
+49
+237.
+DiMasi, J. A., Grabowski, H. G. & Hansen, R. W. Innovation in the
+pharmaceutical industry: new estimates of R&D costs. Journal of health
+economics 47, 20–33 (2016).
+238.
+Yang, X., Wang, Y., Byrne, R., Schneider, G. & Yang, S. Concepts of artificial intelligence for computer-assisted drug discovery. Chemical reviews
+119, 10520–10594 (2019).
+239.
+Dimitrov, T., Kreisbeck, C., Becker, J. S., Aspuru-Guzik, A. & Saikin,
+S. K. Autonomous molecular design: then and now. ACS applied materials
+& interfaces 11, 24825–24836 (2019).
+240.
+Schneider, P., Walters, W. P., Plowright, A. T., Sieroka, N., Listgarten, J.,
+Goodnow, R. A., Fisher, J., Jansen, J. M., Duca, J. S., Rush, T. S., et al.
+Rethinking drug design in the artificial intelligence era. Nature Reviews
+Drug Discovery 19, 353–364 (2020).
+241.
+Jiménez-Luna, J., Grisoni, F. & Schneider, G. Drug discovery with explainable artificial intelligence. Nature Machine Intelligence 2, 573–584
+(2020).
+242.
+Xie, W., Wang, F., Li, Y., Lai, L. & Pei, J. Advances and Challenges in
+De Novo Drug Design Using Three-Dimensional Deep Generative Models.
+Journal of Chemical Information and Modeling (2022).
+243.
+Sun, M., Zhao, S., Gilvary, C., Elemento, O., Zhou, J. & Wang, F. Graph
+convolutional networks for computational drug development and discovery. Briefings in bioinformatics 21, 919–935 (2020).
+244.
+Popova, M., Shvets, M., Oliva, J. & Isayev, O. MolecularRNN: Generating realistic molecular graphs with optimized properties. arXiv preprint
+arXiv:1905.13372 (2019).
+245.
+Bongini, P., Bianchini, M. & Scarselli, F. Molecular generative graph neural networks for drug discovery. Neurocomputing 450, 242–252 (2021).
+246.
+Kingma, D. P. & Welling, M. Auto-encoding variational bayes. arXiv
+preprint arXiv:1312.6114 (2013).
+247.
+Goodfellow, I., Pouget-Abadie, J., Mirza, M., Xu, B., Warde-Farley, D.,
+Ozair, S., Courville, A. & Bengio, Y. Generative adversarial nets. Advances
+in neural information processing systems 27 (2014).
+248.
+Rezende, D. & Mohamed, S. Variational inference with normalizing flows
+in International conference on machine learning (2015), 1530–1538.
+249.
+Song, Y. & Ermon, S. Generative modeling by estimating gradients of the
+data distribution. Advances in Neural Information Processing Systems 32
+(2019).
+250.
+Ho, J., Jain, A. & Abbeel, P. Denoising diffusion probabilistic models. Advances in Neural Information Processing Systems 33, 6840–6851 (2020).
+251.
+Brown, N., Fiscato, M., Segler, M. H. & Vaucher, A. C. GuacaMol: benchmarking models for de novo molecular design. Journal of chemical information and modeling 59, 1096–1108 (2019).
+252.
+Polykovskiy, D., Zhebrak, A., Sanchez-Lengeling, B., Golovanov, S., Tatanov,
+O., Belyaev, S., Kurbanov, R., Artamonov, A., Aladinskiy, V., Veselov,
+
+50
+Graph Neural Networks for Molecules
+M., et al. Molecular sets (MOSES): a benchmarking platform for molecular generation models. Frontiers in pharmacology 11, 565644 (2020).
+253.
+Preuer, K., Renz, P., Unterthiner, T., Hochreiter, S. & Klambauer, G.
+Fréchet ChemNet distance: a metric for generative models for molecules in
+drug discovery. Journal of chemical information and modeling 58, 1736–
+1741 (2018).
+254.
+Heusel, M., Ramsauer, H., Unterthiner, T., Nessler, B. & Hochreiter, S.
+Gans trained by a two time-scale update rule converge to a local nash
+equilibrium. Advances in neural information processing systems 30 (2017).
+255.
+Gómez-Bombarelli, R., Wei, J. N., Duvenaud, D., Hernández-Lobato, J. M.,
+Sánchez-Lengeling, B., Sheberla, D., Aguilera-Iparraguirre, J., Hirzel, T. D.,
+Adams, R. P. & Aspuru-Guzik, A. Automatic chemical design using a
+data-driven continuous representation of molecules. ACS central science
+4, 268–276 (2018).
+256.
+Ertl, P. & Schuffenhauer, A. Estimation of synthetic accessibility score of
+drug-like molecules based on molecular complexity and fragment contributions. Journal of cheminformatics 1, 1–11 (2009).
+257.
+Bickerton, G. R., Paolini, G. V., Besnard, J., Muresan, S. & Hopkins,
+A. L. Quantifying the chemical beauty of drugs. Nature chemistry 4, 90–
+98 (2012).
+258.
+Gretton, A., Borgwardt, K. M., Rasch, M. J., Schölkopf, B. & Smola, A.
+A kernel two-sample test. The Journal of Machine Learning Research 13,
+723–773 (2012).
+259.
+You, J., Ying, R., Ren, X., Hamilton, W. & Leskovec, J. Graphrnn: Generating realistic graphs with deep auto-regressive models in International
+conference on machine learning (2018), 5708–5717.
+260.
+Friesner, R. A., Banks, J. L., Murphy, R. B., Halgren, T. A., Klicic, J. J.,
+Mainz, D. T., Repasky, M. P., Knoll, E. H., Shelley, M., Perry, J. K., et al.
+Glide: a new approach for rapid, accurate docking and scoring. 1. Method
+and assessment of docking accuracy. Journal of medicinal chemistry 47,
+1739–1749 (2004).
+261.
+Trott, O. & Olson, A. J. AutoDock Vina: improving the speed and accuracy of docking with a new scoring function, efficient optimization, and
+multithreading. Journal of computational chemistry 31, 455–461 (2010).
+262.
+Eastman, P., Swails, J., Chodera, J. D., McGibbon, R. T., Zhao, Y.,
+Beauchamp, K. A., Wang, L.-P., Simmonett, A. C., Harrigan, M. P., Stern,
+C. D., et al. OpenMM 7: Rapid development of high performance algorithms for molecular dynamics. PLoS computational biology 13, e1005659
+(2017).
+263.
+Hollingsworth, S. A. & Dror, R. O. Molecular dynamics simulation for all.
+Neuron 99, 1129–1143 (2018).
+264.
+Cournia, Z., Allen, B. K., Beuming, T., Pearlman, D. A., Radak, B. K.
+& Sherman, W. Rigorous free energy simulations in virtual screening.
+Journal of Chemical Information and Modeling 60, 4153–4169 (2020).
+
+Graph Neural Networks for Molecules
+51
+265.
+Jeon, W. & Kim, D. Autonomous molecule generation using reinforcement learning and docking to develop potential novel inhibitors. Scientific
+reports 10, 1–11 (2020).
+266.
+Eckmann, P., Sun, K., Zhao, B., Feng, M., Gilson, M. K. & Yu, R. LIMO:
+Latent Inceptionism for Targeted Molecule Generation. arXiv preprint
+arXiv:2206.09010 (2022).
+267.
+Hoogeboom, E., Satorras, V. G., Vignac, C. & Welling, M. Equivariant
+diffusion for molecule generation in 3d in International Conference on
+Machine Learning (2022), 8867–8887.
+268.
+Gao, W., Fu, T., Sun, J. & Coley, C. W. Sample Efficiency Matters: A
+Benchmark for Practical Molecular Optimization. arXiv preprint arXiv:2206.12411
+(2022).
+269.
+Blum, L. C. & Reymond, J.-L. 970 million druglike small molecules for
+virtual screening in the chemical universe database GDB-13. Journal of
+the American Chemical Society 131, 8732–8733 (2009).
+270.
+Axelrod, S. & Gomez-Bombarelli, R. GEOM, energy-annotated molecular
+conformations for property prediction and molecular generation. Scientific
+Data 9, 1–14 (2022).
+271.
+Grover, A., Zweig, A. & Ermon, S. Graphite: Iterative generative modeling
+of graphs in International conference on machine learning (2019), 2434–
+2444.
+272.
+Olivecrona, M., Blaschke, T., Engkvist, O. & Chen, H. Molecular de-novo
+design through deep reinforcement learning. Journal of cheminformatics
+9, 1–14 (2017).
+273.
+Guimaraes, G. L., Sanchez-Lengeling, B., Outeiral, C., Farias, P. L. C.
+& Aspuru-Guzik, A. Objective-reinforced generative adversarial networks
+(ORGAN) for sequence generation models. arXiv preprint arXiv:1705.10843
+(2017).
+274.
+Zhavoronkov, A., Ivanenkov, Y. A., Aliper, A., Veselov, M. S., Aladinskiy,
+V. A., Aladinskaya, A. V., Terentiev, V. A., Polykovskiy, D. A., Kuznetsov,
+M. D., Asadulaev, A., et al. Deep learning enables rapid identification
+of potent DDR1 kinase inhibitors. Nature biotechnology 37, 1038–1040
+(2019).
+275.
+Zhou, Z., Kearnes, S., Li, L., Zare, R. N. & Riley, P. Optimization of
+molecules via deep reinforcement learning. Scientific reports 9, 1–10 (2019).
+276.
+Wang, Y., Cao, Z. & Barati Farimani, A. Efficient water desalination with
+graphene nanopores obtained using artificial intelligence. npj 2D Materials
+and Applications 5, 1–9 (2021).
+277.
+Grebner, C., Matter, H., Plowright, A. T. & Hessler, G. Automated de
+novo design in medicinal chemistry: which types of chemistry does a generative neural network learn? Journal of Medicinal Chemistry 63, 8809–
+8823 (2020).
+278.
+You, J., Liu, B., Ying, Z., Pande, V. & Leskovec, J. Graph convolutional
+policy network for goal-directed molecular graph generation. Advances in
+neural information processing systems 31 (2018).
+
+52
+Graph Neural Networks for Molecules
+279.
+Jin, W., Barzilay, R. & Jaakkola, T. Multi-objective molecule generation
+using interpretable substructures in International conference on machine
+learning (2020), 4849–4859.
+280.
+Li, Y., Zhang, L. & Liu, Z. Multi-objective de novo drug design with
+conditional graph generative model. Journal of cheminformatics 10, 1–24
+(2018).
+281.
+Khemchandani, Y., O’Hagan, S., Samanta, S., Swainston, N., Roberts,
+T. J., Bollegala, D. & Kell, D. B. DeepGraphMolGen, a multi-objective,
+computational strategy for generating molecules with desirable properties: a graph convolution and reinforcement learning approach. Journal of
+cheminformatics 12, 1–17 (2020).
+282.
+Mercado, R., Rastemo, T., Lindelöf, E., Klambauer, G., Engkvist, O.,
+Chen, H. & Bjerrum, E. J. Graph networks for molecular design. Machine
+Learning: Science and Technology 2, 025023 (2021).
+283.
+Podda, M., Bacciu, D. & Micheli, A. A deep generative model for fragmentbased molecule generation in International Conference on Artificial Intelligence and Statistics (2020), 2240–2250.
+284.
+Chen, Z., Min, M. R., Parthasarathy, S. & Ning, X. A deep generative
+model for molecule optimization via one fragment modification. Nature
+Machine Intelligence 3, 1040–1049 (2021).
+285.
+Lim, J., Hwang, S.-Y., Moon, S., Kim, S. & Kim, W. Y. Scaffold-based
+molecular design with a graph generative model. Chemical science 11,
+1153–1164 (2020).
+286.
+Xie, Y., Shi, C., Zhou, H., Yang, Y., Zhang, W., Yu, Y. & Li, L. Mars:
+Markov molecular sampling for multi-objective drug discovery. arXiv preprint
+arXiv:2103.10432 (2021).
+287.
+Shi, C., Xu, M., Zhu, Z., Zhang, W., Zhang, M. & Tang, J. Graphaf:
+a flow-based autoregressive model for molecular graph generation. arXiv
+preprint arXiv:2001.09382 (2020).
+288.
+Luo, Y., Yan, K. & Ji, S. Graphdf: A discrete flow model for molecular graph generation in International Conference on Machine Learning
+(2021), 7192–7203.
+289.
+Gebauer, N., Gastegger, M. & Schütt, K. Symmetry-adapted generation
+of 3d point sets for the targeted discovery of molecules. Advances in neural
+information processing systems 32 (2019).
+290.
+Gebauer, N. W., Gastegger, M., Hessmann, S. S., Müller, K.-R. & Schütt,
+K. T. Inverse design of 3d molecular structures with conditional generative
+neural networks. Nature communications 13, 1–11 (2022).
+291.
+Simm, G., Pinsler, R. & Hernández-Lobato, J. M. Reinforcement learning for molecular design guided by quantum mechanics in International
+Conference on Machine Learning (2020), 8959–8969.
+292.
+Flam-Shepherd, D., Zhigalin, A. & Aspuru-Guzik, A. Scalable FragmentBased 3D Molecular Design with Reinforcement Learning. arXiv preprint
+arXiv:2202.00658 (2022).
+
+Graph Neural Networks for Molecules
+53
+293.
+Luo, Y. & Ji, S. An autoregressive flow model for 3d molecular geometry
+generation from scratch in International Conference on Learning Representations (2021).
+294.
+Luo, S., Guan, J., Ma, J. & Peng, J. A 3D generative model for structurebased drug design. Advances in Neural Information Processing Systems
+34, 6229–6239 (2021).
+295.
+Liu, M., Luo, Y., Uchino, K., Maruhashi, K. & Ji, S. Generating 3D
+Molecules for Target Protein Binding. arXiv preprint arXiv:2204.09410
+(2022).
+296.
+Powers, A., Yu, H., Suriana, P. & Dror, R. Fragment-Based Ligand Generation Guided by Geometric Deep Learning on Protein-Ligand Structure.
+bioRxiv (2022).
+297.
+Imrie, F., Bradley, A. R., van der Schaar, M. & Deane, C. M. Deep generative models for 3D linker design. Journal of chemical information and
+modeling 60, 1983–1995 (2020).
+298.
+Blaschke, T., Olivecrona, M., Engkvist, O., Bajorath, J. & Chen, H. Application of generative autoencoder in de novo molecular design. Molecular
+informatics 37, 1700123 (2018).
+299.
+Kipf, T. N. & Welling, M. Variational graph auto-encoders. arXiv preprint
+arXiv:1611.07308 (2016).
+300.
+Kusner, M. J., Paige, B. & Hernández-Lobato, J. M. Grammar variational
+autoencoder in International conference on machine learning (2017), 1945–
+1954.
+301.
+Vignac, C. & Frossard, P. Top-N: Equivariant Set and Graph Generation
+without Exchangeability in International Conference on Learning Representations (2022).
+302.
+Simonovsky, M. & Komodakis, N. Graphvae: Towards generation of small
+graphs using variational autoencoders in International conference on artificial neural networks (2018), 412–422.
+303.
+Kwon, Y., Yoo, J., Choi, Y.-S., Son, W.-J., Lee, D. & Kang, S. Efficient
+learning of non-autoregressive graph variational autoencoders for molecular graph generation. Journal of Cheminformatics 11, 1–10 (2019).
+304.
+Ma, T., Chen, J. & Xiao, C. Constrained generation of semantically valid
+graphs via regularizing variational autoencoders. Advances in Neural Information Processing Systems 31 (2018).
+305.
+Bresson, X. & Laurent, T. A two-step graph convolutional decoder for
+molecule generation. arXiv preprint arXiv:1906.03412 (2019).
+306.
+Jin, W., Barzilay, R. & Jaakkola, T. Junction tree variational autoencoder
+for molecular graph generation in International conference on machine
+learning (2018), 2323–2332.
+307.
+Jin, W., Barzilay, R. & Jaakkola, T. Hierarchical generation of molecular graphs using structural motifs in International conference on machine
+learning (2020), 4839–4848.
+
+54
+Graph Neural Networks for Molecules
+308.
+Li, Y., Hu, J., Wang, Y., Zhou, J., Zhang, L. & Liu, Z. Deepscaffold: a
+comprehensive tool for scaffold-based de novo drug discovery using deep
+learning. Journal of chemical information and modeling 60, 77–91 (2019).
+309.
+Mahmood, O., Mansimov, E., Bonneau, R. & Cho, K. Masked graph modeling for molecule generation. Nature communications 12, 1–12 (2021).
+310.
+Kang, S. & Cho, K. Conditional molecular design with deep generative
+models. Journal of chemical information and modeling 59, 43–52 (2018).
+311.
+Lim, J., Ryu, S., Kim, J. W. & Kim, W. Y. Molecular generative model
+based on conditional variational autoencoder for de novo molecular design.
+Journal of cheminformatics 10, 1–9 (2018).
+312.
+Lee, M. & Min, K. MGCVAE: Multi-Objective Inverse Design via Molecular Graph Conditional Variational Autoencoder. Journal of Chemical
+Information and Modeling (2022).
+313.
+Richards, R. & Groener, A. Conditional β-VAE for De Novo Molecular
+Generation (2022).
+314.
+Griffiths, R.-R. & Hernández-Lobato, J. M. Constrained Bayesian optimization for automatic chemical design using variational autoencoders.
+Chemical science 11, 577–586 (2020).
+315.
+Samanta, B., De, A., Jana, G., Gómez, V., Chattaraj, P. K., Ganguly, N.
+& Gomez-Rodriguez, M. Nevae: A deep generative model for molecular
+graphs. Journal of machine learning research. 2020 Apr; 21 (114): 1-33
+(2020).
+316.
+Hoffman, S. C., Chenthamarakshan, V., Wadhawan, K., Chen, P.-Y. &
+Das, P. Optimizing molecules using efficient queries from property evaluations. Nature Machine Intelligence 4, 21–31 (2022).
+317.
+Chenthamarakshan, V., Das, P., Hoffman, S., Strobelt, H., Padhi, I., Lim,
+K. W., Hoover, B., Manica, M., Born, J., Laino, T., et al. CogMol: targetspecific and selective drug design for COVID-19 using deep generative
+models. Advances in Neural Information Processing Systems 33, 4320–
+4332 (2020).
+318.
+Ragoza, M., Masuda, T. & Koes, D. R. Generating 3D molecules conditional on receptor binding sites with deep generative models. Chemical
+science 13, 2701–2713 (2022).
+319.
+Jin, W., Yang, K., Barzilay, R. & Jaakkola, T. Learning Multimodal Graphto-Graph Translation for Molecule Optimization in International Conference on Learning Representations (2019).
+320.
+Wang, H., Wang, J., Wang, J., Zhao, M., Zhang, W., Zhang, F., Li, W.,
+Xie, X. & Guo, M. Learning graph representation with generative adversarial nets. IEEE Transactions on Knowledge and Data Engineering 33,
+3090–3103 (2019).
+321.
+Guo, X., Wu, L. & Zhao, L. Deep graph translation. IEEE Transactions
+on Neural Networks and Learning Systems (2022).
+322.
+Mirza, M. & Osindero, S. Conditional generative adversarial nets. arXiv
+preprint arXiv:1411.1784 (2014).
+
+Graph Neural Networks for Molecules
+55
+323.
+Arjovsky, M., Chintala, S. & Bottou, L. Wasserstein generative adversarial
+networks in International conference on machine learning (2017), 214–
+223.
+324.
+Karras, T., Laine, S. & Aila, T. A style-based generator architecture for
+generative adversarial networks in Proceedings of the IEEE/CVF conference on computer vision and pattern recognition (2019), 4401–4410.
+325.
+De Cao, N. & Kipf, T. MolGAN: An implicit generative model for small
+molecular graphs. arXiv preprint arXiv:1805.11973 (2018).
+326.
+Maziarka, Ł., Pocha, A., Kaczmarczyk, J., Rataj, K., Danel, T. & Warchoł, M. Mol-CycleGAN: a generative model for molecular optimization.
+Journal of Cheminformatics 12, 1–18 (2020).
+327.
+Zhu, J.-Y., Park, T., Isola, P. & Efros, A. A. Unpaired image-to-image
+translation using cycle-consistent adversarial networks in Proceedings of
+the IEEE international conference on computer vision (2017), 2223–2232.
+328.
+Tsujimoto, Y., Hiwa, S., Nakamura, Y., Oe, Y. & Hiroyasu, T. L-MolGAN:
+An improved implicit generative model for large molecular graphs (2021).
+329.
+Liu, J., Kumar, A., Ba, J., Kiros, J. & Swersky, K. Graph normalizing
+flows. Advances in Neural Information Processing Systems 32 (2019).
+330.
+Kobyzev, I., Prince, S. J. & Brubaker, M. A. Normalizing flows: An introduction and review of current methods. IEEE transactions on pattern
+analysis and machine intelligence 43, 3964–3979 (2020).
+331.
+Dinh, L., Krueger, D. & Bengio, Y. Nice: Non-linear independent components estimation. arXiv preprint arXiv:1410.8516 (2014).
+332.
+Dinh, L., Sohl-Dickstein, J. & Bengio, S. Density estimation using real
+nvp. arXiv preprint arXiv:1605.08803 (2016).
+333.
+Madhawa, K., Ishiguro, K., Nakago, K. & Abe, M. Graphnvp: An invertible flow model for generating molecular graphs. arXiv preprint arXiv:1905.11600
+(2019).
+334.
+Zang, C. & Wang, F. MoFlow: an invertible flow model for generating
+molecular graphs in Proceedings of the 26th ACM SIGKDD International
+Conference on Knowledge Discovery & Data Mining (2020), 617–626.
+335.
+Song, Y. & Ermon, S. Improved techniques for training score-based generative models. Advances in neural information processing systems 33,
+12438–12448 (2020).
+336.
+Song, J., Meng, C. & Ermon, S. Denoising diffusion implicit models. arXiv
+preprint arXiv:2010.02502 (2020).
+337.
+Niu, C., Song, Y., Song, J., Zhao, S., Grover, A. & Ermon, S. Permutation invariant graph generation via score-based generative modeling in
+International Conference on Artificial Intelligence and Statistics (2020),
+4474–4484.
+338.
+Song, Y., Sohl-Dickstein, J., Kingma, D. P., Kumar, A., Ermon, S. &
+Poole, B. Score-based generative modeling through stochastic differential
+equations. arXiv preprint arXiv:2011.13456 (2020).
+339.
+Trippe, B. L., Yim, J., Tischer, D., Broderick, T., Baker, D., Barzilay,
+R. & Jaakkola, T. Diffusion probabilistic modeling of protein backbones
+
+56
+Graph Neural Networks for Molecules
+in 3D for the motif-scaffolding problem. arXiv preprint arXiv:2206.04119
+(2022).
+340.
+Axelrod, S. & Gomez-Bombarelli, R. Molecular machine learning with
+conformer ensembles. arXiv preprint arXiv:2012.08452 (2020).
+341.
+Xu, Z., Luo, Y., Zhang, X., Xu, X., Xie, Y., Liu, M., Dickerson, K., Deng,
+C., Nakata, M. & Ji, S. Molecule3D: A Benchmark for Predicting 3D Geometries from Molecular Graphs. arXiv preprint arXiv:2110.01717 (2021).
+342.
+AlQuraishi, M. & Sorger, P. K. Differentiable biology: using deep learning
+for biophysics-based and data-driven modeling of molecular mechanisms.
+Nature methods 18, 1169–1180 (2021).
+343.
+Hawkins, P. C. Conformation generation: the state of the art. Journal of
+chemical information and modeling 57, 1747–1756 (2017).
+344.
+Shi, C., Luo, S., Xu, M. & Tang, J. Learning gradient fields for molecular
+conformation generation in International Conference on Machine Learning (2021), 9558–9568.
+345.
+Xu, M., Yu, L., Song, Y., Shi, C., Ermon, S. & Tang, J. GeoDiff: A Geometric Diffusion Model for Molecular Conformation Generation in International Conference on Learning Representations (2022).
+346.
+Kabsch, W. A solution for the best rotation to relate two sets of vectors.
+Acta Crystallographica Section A: Crystal Physics, Diffraction, Theoretical and General Crystallography 32, 922–923 (1976).
+347.
+Ganea, O., Pattanaik, L., Coley, C., Barzilay, R., Jensen, K., Green, W.
+& Jaakkola, T. Geomol: Torsional geometric generation of molecular 3d
+conformer ensembles. Advances in Neural Information Processing Systems
+34, 13757–13769 (2021).
+348.
+Mansimov, E., Mahmood, O., Kang, S. & Cho, K. Molecular geometry
+prediction using a deep generative graph neural network. Scientific reports
+9, 1–13 (2019).
+349.
+Simm, G. N. & Hernández-Lobato, J. M. A generative model for molecular
+distance geometry. arXiv preprint arXiv:1909.11459 (2019).
+350.
+Xu, M., Luo, S., Bengio, Y., Peng, J. & Tang, J. Learning neural generative dynamics for molecular conformation generation. arXiv preprint
+arXiv:2102.10240 (2021).
+351.
+Liberti, L., Lavor, C., Maculan, N. & Mucherino, A. Euclidean distance
+geometry and applications. SIAM review 56, 3–69 (2014).
+352.
+Xu, M., Wang, W., Luo, S., Shi, C., Bengio, Y., Gomez-Bombarelli, R. &
+Tang, J. An end-to-end framework for molecular conformation generation
+via bilevel programming in International Conference on Machine Learning
+(2021), 11537–11547.
+353.
+Luo, S., Shi, C., Xu, M. & Tang, J. Predicting molecular conformation via
+dynamic graph score matching. Advances in Neural Information Processing Systems 34, 19784–19795 (2021).
+354.
+Jing, B., Corso, G., Chang, J., Barzilay, R. & Jaakkola, T. Torsional Diffusion for Molecular Conformer Generation. arXiv preprint arXiv:2206.01729
+(2022).
+
+Graph Neural Networks for Molecules
+57
+355.
+Gogineni, T., Xu, Z., Punzalan, E., Jiang, R., Kammeraad, J., Tewari,
+A. & Zimmerman, P. Torsionnet: A reinforcement learning approach to
+sequential conformer search. Advances in Neural Information Processing
+Systems 33, 20142–20153 (2020).
+356.
+Kadurin, A., Nikolenko, S., Khrabrov, K., Aliper, A. & Zhavoronkov, A.
+druGAN: an advanced generative adversarial autoencoder model for de
+novo generation of new molecules with desired molecular properties in
+silico. Molecular pharmaceutics 14, 3098–3104 (2017).
+357.
+Segler, M. H., Kogej, T., Tyrchan, C. & Waller, M. P. Generating focused
+molecule libraries for drug discovery with recurrent neural networks. ACS
+central science 4, 120–131 (2018).
+358.
+Prykhodko, O., Johansson, S. V., Kotsias, P.-C., Arús-Pous, J., Bjerrum,
+E. J., Engkvist, O. & Chen, H. A de novo molecular generation method
+using latent vector based generative adversarial network. Journal of Cheminformatics 11, 1–13 (2019).
+359.
+Coley, C. W., Barzilay, R., Jaakkola, T. S., Green, W. H. & Jensen, K. F.
+Prediction of organic reaction outcomes using machine learning. ACS central science 3, 434–443 (2017).
+360.
+Corey, E. J. General methods for the construction of complex molecules.
+Pure and Applied chemistry 14, 19–38 (1967).
+361.
+Coley, C. W., Green, W. H. & Jensen, K. F. Machine learning in computeraided synthesis planning. Accounts of chemical research 51, 1281–1289
+(2018).
+362.
+Schneider, N., Stiefl, N. & Landrum, G. A. What’s what: The (nearly)
+definitive guide to reaction role assignment. Journal of chemical information and modeling 56, 2336–2346 (2016).
+363.
+Shi, C., Xu, M., Guo, H., Zhang, M. & Tang, J. A graph to graphs framework for retrosynthesis prediction in International conference on machine
+learning (2020), 8818–8827.
+364.
+Sun, R., Dai, H., Li, L., Kearnes, S. & Dai, B. Energy-based view of
+retrosynthesis. arXiv preprint arXiv:2007.13437 (2020).
+365.
+Somnath, V. R., Bunne, C., Coley, C., Krause, A. & Barzilay, R. Learning
+graph models for retrosynthesis prediction. Advances in Neural Information Processing Systems 34, 9405–9415 (2021).
+366.
+Lin, Z., Yin, S., Shi, L., Zhou, W. & Zhang, Y. G2GT: Retrosynthesis Prediction with Graph to Graph Attention Neural Network and Self-Training.
+arXiv preprint arXiv:2204.08608 (2022).
+367.
+Han, P., Zhao, P., Lu, C., Huang, J., Wu, J., Shang, S., Yao, B. & Zhang,
+X. GNN-Retro: Retrosynthetic Planning with Graph Neural Networks in
+Proceedings of the AAAI Conference on Artificial Intelligence 36 (2022),
+4014–4021.
+368.
+Do, K., Tran, T. & Venkatesh, S. Graph transformation policy network
+for chemical reaction prediction in Proceedings of the 25th ACM SIGKDD
+International Conference on Knowledge Discovery & Data Mining (2019),
+750–760.
+
+58
+Graph Neural Networks for Molecules
+369.
+Sacha, M., Błaz, M., Byrski, P., Dabrowski-Tumanski, P., Chrominski,
+M., Loska, R., Włodarczyk-Pruszynski, P. & Jastrzebski, S. Molecule edit
+graph attention network: modeling chemical reactions as sequences of
+graph edits. Journal of Chemical Information and Modeling 61, 3273–
+3284 (2021).
+370.
+Ryou, S., Maser, M. R., Cui, A. Y., DeLano, T. J., Yue, Y. & Reisman,
+S. E. Graph Neural Networks for the Prediction of Substrate-Specific Organic Reaction Conditions. arXiv preprint arXiv:2007.04275 (2020).
+371.
+Saebi, M., Nan, B., Herr, J., Wahlers, J., Wiest, O. & Chawla, N. Graph
+neural networks for predicting chemical reaction performance (2021).
+372.
+Kwon, Y., Lee, D., Choi, Y.-S. & Kang, S. Uncertainty-aware prediction
+of chemical reaction yields with graph neural networks. Journal of Cheminformatics 14, 1–10 (2022).
+373.
+Bradshaw, J., Paige, B., Kusner, M. J., Segler, M. & Hernández-Lobato,
+J. M. A model to search for synthesizable molecules. Advances in Neural
+Information Processing Systems 32 (2019).
+374.
+Gu, G. H., Jang, J., Noh, J., Walsh, A. & Jung, Y. Perovskite synthesizability using graph neural networks. npj Computational Materials 8, 1–8
+(2022).
+375.
+Liu, C.-H., Korablyov, M., Jastrzębski, S., Włodarczyk-Pruszyński, P.,
+Bengio, Y. & Segler, M. RetroGNN: Fast Estimation of Synthesizability
+for Virtual Screening and De Novo Design by Learning from Slow Retrosynthesis Software. Journal of Chemical Information and Modeling 62,
+2293–2300 (2022).
+376.
+Miller, G. A. WordNet: a lexical database for English. Communications
+of the ACM 38, 39–41 (1995).
+377.
+Lehmann, J., Isele, R., Jakob, M., Jentzsch, A., Kontokostas, D., Mendes,
+P. N., Hellmann, S., Morsey, M., Van Kleef, P., Auer, S., et al. Dbpedia–a
+large-scale, multilingual knowledge base extracted from wikipedia. Semantic web 6, 167–195 (2015).
+378.
+Ryu, J. Y., Kim, H. U. & Lee, S. Y. Deep learning improves prediction of drug-drug and drug-food interactions. Proceedings of the National
+Academy of Sciences 115, E4304–E4311 (2018).
+379.
+Niu, J., Straubinger, R. M. & Mager, D. E. Pharmacodynamic drug–
+drug interactions. Clinical Pharmacology & Therapeutics 105, 1395–1406
+(2019).
+380.
+Karim, M. R., Cochez, M., Jares, J. B., Uddin, M., Beyan, O. & Decker,
+S. Drug-drug interaction prediction based on knowledge graph embeddings
+and convolutional-LSTM network in Proceedings of the 10th ACM international conference on bioinformatics, computational biology and health
+informatics (2019), 113–123.
+381.
+Celebi, R., Uyar, H., Yasar, E., Gumus, O., Dikenelli, O. & Dumontier,
+M. Evaluation of knowledge graph embedding approaches for drug-drug
+interaction prediction in realistic settings. BMC bioinformatics 20, 1–14
+(2019).
+
+Graph Neural Networks for Molecules
+59
+382.
+Zhang, Z., Chen, L., Zhong, F., Wang, D., Jiang, J., Zhang, S., Jiang,
+H., Zheng, M. & Li, X. Graph neural network approaches for drug-target
+interactions. Current Opinion in Structural Biology 73, 102327 (2022).
+383.
+Wishart, D. S., Feunang, Y. D., Guo, A. C., Lo, E. J., Marcu, A., Grant,
+J. R., Sajed, T., Johnson, D., Li, C., Sayeeda, Z., et al. DrugBank 5.0: a
+major update to the DrugBank database for 2018. Nucleic acids research
+46, D1074–D1082 (2018).
+384.
+Kanehisa, M. & Goto, S. KEGG: kyoto encyclopedia of genes and genomes.
+Nucleic acids research 28, 27–30 (2000).
+385.
+Kanehisa, M., Furumichi, M., Sato, Y., Ishiguro-Watanabe, M. & Tanabe, M. KEGG: integrating viruses and cellular organisms. Nucleic acids
+research 49, D545–D551 (2021).
+386.
+Zitnik, M., Sosič, R., Maheshwari, S. & Leskovec, J. BioSNAP Datasets:
+Stanford Biomedical Network Dataset Collection 2018. http://snap.
+stanford.edu/biodata.
+387.
+Whirl-Carrillo, M., McDonagh, E. M., Hebert, J., Gong, L., Sangkuhl, K.,
+Thorn, C., Altman, R. B. & Klein, T. E. Pharmacogenomics knowledge
+for personalized medicine. Clinical Pharmacology & Therapeutics 92, 414–
+417 (2012).
+388.
+Whirl-Carrillo, M., Huddart, R., Gong, L., Sangkuhl, K., Thorn, C. F.,
+Whaley, R. & Klein, T. E. An evidence-based framework for evaluating
+pharmacogenomics knowledge for personalized medicine. Clinical Pharmacology & Therapeutics 110, 563–572 (2021).
+389.
+Belleau, F., Nolin, M.-A., Tourigny, N., Rigault, P. & Morissette, J. Bio2RDF:
+towards a mashup to build bioinformatics knowledge systems. Journal of
+biomedical informatics 41, 706–716 (2008).
+390.
+Feng, Y.-H., Zhang, S.-W. & Shi, J.-Y. DPDDI: a deep predictor for drugdrug interactions. BMC bioinformatics 21, 1–15 (2020).
+391.
+Yu, Y., Huang, K., Zhang, C., Glass, L. M., Sun, J. & Xiao, C. SumGNN:
+multi-typed drug interaction prediction via efficient knowledge graph summarization. Bioinformatics 37, 2988–2995 (2021).
+392.
+Bai, Y., Gu, K., Sun, Y. & Wang, W. Bi-level graph neural networks for
+drug-drug interaction prediction. arXiv preprint arXiv:2006.14002 (2020).
+393.
+Chen, Y., Ma, T., Yang, X., Wang, J., Song, B. & Zeng, X. MUFFIN:
+multi-scale feature fusion for drug–drug interaction prediction. Bioinformatics 37, 2651–2658 (2021).
+394.
+Lyu, T., Gao, J., Tian, L., Li, Z., Zhang, P. & Zhang, J. MDNN: A Multimodal Deep Neural Network for Predicting Drug-Drug Interaction Events.
+in IJCAI (2021), 3536–3542.
+395.
+Lin, X., Quan, Z., Wang, Z.-J., Ma, T. & Zeng, X. KGNN: Knowledge
+Graph Neural Network for Drug-Drug Interaction Prediction. in IJCAI
+380 (2020), 2739–2745.
+396.
+Zhang, Y., Li, Z., Duan, B., Qin, L. & Peng, J. MKGE: Knowledge Graph
+Embedding with Molecular Structure Information. Computational Biology
+and Chemistry, 107730 (2022).
+
+60
+Graph Neural Networks for Molecules
+397.
+He, C., Liu, Y., Li, H., Zhang, H., Mao, Y., Qin, X., Liu, L. & Zhang, X.
+Multi-type feature fusion based on graph neural network for drug-drug
+interaction prediction. BMC Bioinformatics 23, 1–18 (2022).
+398.
+Feng, Y.-H. & Zhang, S.-W. Prediction of Drug-Drug Interaction Using
+an Attention-Based Graph Neural Network on Drug Molecular Graphs.
+Molecules 27, 3004 (2022).
+399.
+Nyamabo, A. K., Yu, H. & Shi, J.-Y. SSI–DDI: substructure–substructure
+interactions for drug–drug interaction prediction. Briefings in Bioinformatics 22, bbab133 (2021).
+400.
+Nyamabo, A. K., Yu, H., Liu, Z. & Shi, J.-Y. Drug–drug interaction prediction with learnable size-adaptive molecular substructures. Briefings in
+Bioinformatics 23, bbab441 (2022).
+401.
+Keskin, O., Nussinov, R. & Gursoy, A. in Functional Proteomics 505–521
+(Springer, 2008).
+402.
+Zitnik, M., Sosič, R., Feldman, M. W. & Leskovec, J. Evolution of resilience in protein interactomes across the tree of life. Proceedings of the
+National Academy of Sciences 116, 4426–4433 (2019).
+403.
+Yang, F., Fan, K., Song, D. & Lin, H. Graph-based prediction of Proteinprotein interactions with attributed signed graph embedding. BMC bioinformatics 21, 1–16 (2020).
+404.
+Garay-Ruiz, D. & Bo, C. Chemical reaction network knowledge graphs:
+the OntoRXN ontology. Journal of Cheminformatics 14, 1–12 (2022).
+405.
+Zitnik, M., Agrawal, M. & Leskovec, J. Modeling polypharmacy side effects with graph convolutional networks. Bioinformatics 34, i457–i466
+(2018).
+406.
+Jumper, J., Evans, R., Pritzel, A., Green, T., Figurnov, M., Ronneberger,
+O., Tunyasuvunakool, K., Bates, R., Žıédek, A., Potapenko, A., et al.
+Highly accurate protein structure prediction with AlphaFold. Nature 596,
+583–589 (2021).
+407.
+Baek, M., DiMaio, F., Anishchenko, I., Dauparas, J., Ovchinnikov, S., Lee,
+G. R., Wang, J., Cong, Q., Kinch, L. N., Schaeffer, R. D., et al. Accurate
+prediction of protein structures and interactions using a three-track neural
+network. Science 373, 871–876 (2021).
+408.
+Mirdita, M., Schütze, K., Moriwaki, Y., Heo, L., Ovchinnikov, S. & Steinegger, M. ColabFold: making protein folding accessible to all. Nature Methods, 1–4 (2022).
+409.
+Lin, Z., Akin, H., Rao, R., Hie, B., Zhu, Z., Lu, W., dos Santos Costa,
+A., Fazel-Zarandi, M., Sercu, T., Candido, S., et al. Language models
+of protein sequences at the scale of evolution enable accurate structure
+prediction. bioRxiv (2022).
+410.
+Wu, R., Ding, F., Wang, R., Shen, R., Zhang, X., Luo, S., Su, C., Wu,
+Z., Xie, Q., Berger, B., et al. High-resolution de novo structure prediction
+from primary sequence. bioRxiv (2022).
+
+Graph Neural Networks for Molecules
+61
+411.
+Spalević, S., Veličković, P., Kovačević, J. & Nikolić, M. Hierarchical protein function prediction with tail-GNNs. arXiv preprint arXiv:2007.12804
+(2020).
+412.
+Gligorijević, V., Renfrew, P. D., Kosciolek, T., Leman, J. K., Berenberg,
+D., Vatanen, T., Chandler, C., Taylor, B. C., Fisk, I. M., Vlamakis, H., et
+al. Structure-based protein function prediction using graph convolutional
+networks. Nature communications 12, 1–14 (2021).
+413.
+Zhang, Z., Xu, M., Jamasb, A., Chenthamarakshan, V., Lozano, A., Das,
+P. & Tang, J. Protein representation learning by geometric structure pretraining. arXiv preprint arXiv:2203.06125 (2022).
+414.
+Evans, R., O’Neill, M., Pritzel, A., Antropova, N., Senior, A. W., Green,
+T., Žıédek, A., Bates, R., Blackwell, S., Yim, J., et al. Protein complex
+prediction with AlphaFold-Multimer. BioRxiv (2021).
+415.
+Wang, X., Flannery, S. T. & Kihara, D. Protein docking model evaluation
+by graph neural networks. Frontiers in Molecular Biosciences, 402 (2021).
+416.
+Yan, Z., Hamilton, W. L. & Blanchette, M. Graph neural representational
+learning of RNA secondary structures for predicting RNA-protein interactions. Bioinformatics 36, i276–i284 (2020).
+417.
+Bryant, P., Pozzati, G. & Elofsson, A. Improved prediction of proteinprotein interactions using AlphaFold2. Nature communications 13, 1–11
+(2022).
+418.
+Jing, B., Eismann, S., Suriana, P., Townshend, R. J. & Dror, R. Learning
+from protein structure with geometric vector perceptrons. arXiv preprint
+arXiv:2009.01411 (2020).
+419.
+Ingraham, J., Garg, V., Barzilay, R. & Jaakkola, T. Generative models
+for graph-based protein design. Advances in neural information processing
+systems 32 (2019).
+420.
+Strokach, A., Becerra, D., Corbi-Verge, C., Perez-Riba, A. & Kim, P. M.
+Fast and flexible protein design using deep graph neural networks. Cell
+systems 11, 402–411 (2020).
+421.
+Anand, N. & Achim, T. Protein Structure and Sequence Generation with
+Equivariant Denoising Diffusion Probabilistic Models. arXiv preprint arXiv:2205.15019
+(2022).
+422.
+Townshend, R. J., Vögele, M., Suriana, P., Derry, A., Powers, A., Laloudakis,
+Y., Balachandar, S., Jing, B., Anderson, B., Eismann, S., et al. Atom3d:
+Tasks on molecules in three dimensions. arXiv preprint arXiv:2012.04035
+(2020).
+423.
+Wang, J., Ma, A., Chang, Y., Gong, J., Jiang, Y., Qi, R., Wang, C., Fu, H.,
+Ma, Q. & Xu, D. scGNN is a novel graph neural network framework for
+single-cell RNA-Seq analyses. Nature communications 12, 1–11 (2021).
+424.
+Townshend, R. J., Eismann, S., Watkins, A. M., Rangan, R., Karelina,
+M., Das, R. & Dror, R. O. Geometric deep learning of RNA structure.
+Science 373, 1047–1051 (2021).
+
+62
+Graph Neural Networks for Molecules
+425.
+Reymond, J.-L., Ruddigkeit, L., Blum, L. & Van Deursen, R. The enumeration of chemical space. Wiley Interdisciplinary Reviews: Computational
+Molecular Science 2, 717–733 (2012).
+426.
+Hadsell, R., Chopra, S. & LeCun, Y. Dimensionality reduction by learning
+an invariant mapping in Proceedings of the IEEE/CVF Conference on
+Computer Vision and Pattern Recognition 2 (2006), 1735–1742.
+427.
+Doersch, C. & Zisserman, A. Multi-task self-supervised visual learning in
+Proceedings of the IEEE International Conference on Computer Vision
+(2017), 2051–2060.
+428.
+Zhang, R., Isola, P. & Efros, A. A. Colorful image colorization in European
+conference on computer vision (2016), 649–666.
+429.
+Gidaris, S., Singh, P. & Komodakis, N. Unsupervised representation learning by predicting image rotations. arXiv preprint arXiv:1803.07728 (2018).
+430.
+Pathak, D., Krahenbuhl, P., Donahue, J., Darrell, T. & Efros, A. A. Context encoders: Feature learning by inpainting in Proceedings of the IEEE
+conference on computer vision and pattern recognition (2016), 2536–2544.
+431.
+Zhang, R., Isola, P. & Efros, A. A. Split-brain autoencoders: Unsupervised
+learning by cross-channel prediction in Proceedings of the IEEE conference
+on computer vision and pattern recognition (2017), 1058–1067.
+432.
+Bao, H., Dong, L., Piao, S. & Wei, F. BEiT: BERT Pre-Training of Image
+Transformers in International Conference on Learning Representations
+(2022).
+433.
+He, K., Chen, X., Xie, S., Li, Y., Dollár, P. & Girshick, R. Masked autoencoders are scalable vision learners in Proceedings of the IEEE/CVF
+Conference on Computer Vision and Pattern Recognition (2022), 16000–
+16009.
+434.
+Devlin, J., Chang, M.-W., Lee, K. & Toutanova, K. Bert: Pre-training of
+deep bidirectional transformers for language understanding. arXiv preprint
+arXiv:1810.04805 (2018).
+435.
+Liu, Y., Ott, M., Goyal, N., Du, J., Joshi, M., Chen, D., Levy, O., Lewis,
+M., Zettlemoyer, L. & Stoyanov, V. Roberta: A robustly optimized bert
+pretraining approach. arXiv preprint arXiv:1907.11692 (2019).
+436.
+He, K., Fan, H., Wu, Y., Xie, S. & Girshick, R. Momentum contrast for unsupervised visual representation learning in Proceedings of the IEEE/CVF
+conference on computer vision and pattern recognition (2020), 9729–9738.
+437.
+Chen, T., Kornblith, S., Norouzi, M. & Hinton, G. A simple framework for
+contrastive learning of visual representations in International conference
+on machine learning (2020), 1597–1607.
+438.
+Caron, M., Misra, I., Mairal, J., Goyal, P., Bojanowski, P. & Joulin, A.
+Unsupervised learning of visual features by contrasting cluster assignments. Advances in Neural Information Processing Systems 33, 9912–
+9924 (2020).
+439.
+Bengio, Y., Lecun, Y. & Hinton, G. Deep learning for AI. Communications
+of the ACM 64, 58–65 (2021).
+
+Graph Neural Networks for Molecules
+63
+440.
+Xie, S., Gu, J., Guo, D., Qi, C. R., Guibas, L. & Litany, O. Pointcontrast:
+Unsupervised pre-training for 3d point cloud understanding in European
+conference on computer vision (2020), 574–591.
+441.
+Chaitanya, K., Erdil, E., Karani, N. & Konukoglu, E. Contrastive learning of global and local features for medical image segmentation with limited annotations. Advances in Neural Information Processing Systems 33,
+12546–12558 (2020).
+442.
+Gao, T., Yao, X. & Chen, D. Simcse: Simple contrastive learning of sentence embeddings. arXiv preprint arXiv:2104.08821 (2021).
+443.
+You, Y., Chen, T., Sui, Y., Chen, T., Wang, Z. & Shen, Y. Graph contrastive learning with augmentations. Advances in Neural Information
+Processing Systems 33, 5812–5823 (2020).
+444.
+Magar, R., Wang, Y. & Farimani, A. B. Crystal Twins: Self-supervised
+Learning for Crystalline Material Property Prediction. arXiv preprint arXiv:2205.01893
+(2022).
+445.
+Grill, J.-B., Strub, F., Altché, F., Tallec, C., Richemond, P., Buchatskaya,
+E., Doersch, C., Avila Pires, B., Guo, Z., Gheshlaghi Azar, M., et al.
+Bootstrap your own latent-a new approach to self-supervised learning. Advances in neural information processing systems 33, 21271–21284 (2020).
+446.
+Chen, X. & He, K. Exploring simple siamese representation learning in
+Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (2021), 15750–15758.
+447.
+Zbontar, J., Jing, L., Misra, I., LeCun, Y. & Deny, S. Barlow twins: Selfsupervised learning via redundancy reduction in International Conference
+on Machine Learning (2021), 12310–12320.
+448.
+Bardes, A., Ponce, J. & LeCun, Y. Vicreg: Variance-invariance-covariance
+regularization for self-supervised learning. arXiv preprint arXiv:2105.04906
+(2021).
+449.
+Xie, Y., Xu, Z., Zhang, J., Wang, Z. & Ji, S. Self-supervised learning of
+graph neural networks: A unified review. IEEE Transactions on Pattern
+Analysis and Machine Intelligence (2022).
+450.
+Fang, Y., Zhang, Q., Chen, Z., Fan, X. & Chen, H. Knowledge-informed
+Molecular Learning: A Survey on Paradigm Transfer. arXiv preprint arXiv:2202.10587
+(2022).
+451.
+Zhang, Z., Liu, Q., Wang, H., Lu, C. & Lee, C.-K. Motif-based Graph
+Self-Supervised Learning for Molecular Property Prediction in Advances
+in Neural Information Processing Systems 34 (2021).
+452.
+He, J., Tian, K., Luo, S., Min, Y., Zheng, S., Shi, Y., He, D., Liu, H.,
+Yu, N., Wang, L., et al. Masked Molecule Modeling: A New Paradigm of
+Molecular Representation Learning for Chemistry Understanding (2022).
+453.
+Liu, S., Demirel, M. F. & Liang, Y. N-gram graph: Simple unsupervised
+representation for graphs, with applications to molecules. Advances in
+neural information processing systems 32 (2019).
+454.
+Sun, F.-Y., Hoffman, J., Verma, V. & Tang, J. InfoGraph: Unsupervised
+and Semi-supervised Graph-Level Representation Learning via Mutual In-
+
+64
+Graph Neural Networks for Molecules
+formation Maximization in International Conference on Learning Representations (2019).
+455.
+Li, S., Zhou, J., Xu, T., Dou, D. & Xiong, H. GeomGCL: Geometric Graph
+Contrastive Learning for Molecular Property Prediction in Proceedings of
+the AAAI Conference on Artificial Intelligence 36 (2022), 4541–4549.
+456.
+Zhou, G., Gao, Z., Ding, Q., Zheng, H., Xu, H., Wei, Z., Zhang, L. & Ke, G.
+Uni-Mol: A Universal 3D Molecular Representation Learning Framework
+(2022).
+457.
+Liu, S., Wang, H., Liu, W., Lasenby, J., Guo, H. & Tang, J. Pre-training
+Molecular Graph Representation with 3D Geometry in International Conference on Learning Representations (2022).
+458.
+Stärk, H., Beaini, D., Corso, G., Tossou, P., Dallago, C., Günnemann, S.
+& Lió, P. 3D Infomax improves GNNs for Molecular Property Prediction
+in Proceedings of the 39th International Conference on Machine Learning
+(2022).
+459.
+Zaidi, S., Schaarschmidt, M., Martens, J., Kim, H., Teh, Y. W., SanchezGonzalez, A., Battaglia, P., Pascanu, R. & Godwin, J. Pre-training via Denoising for Molecular Property Prediction. arXiv preprint arXiv:2206.00133
+(2022).
+460.
+Liu, S., Guo, H. & Tang, J. Molecular Geometry Pretraining with SE(3)-
+Invariant Denoising Distance Matching. arXiv preprint arXiv:2206.13602
+(2022).
+461.
+Jiao, R., Han, J., Huang, W., Rong, Y. & Liu, Y. 3D Equivariant Molecular
+Graph Pretraining. arXiv preprint arXiv:2207.08824 (2022).
+462.
+Chen, D., Gao, K., Nguyen, D. D., Chen, X., Jiang, Y., Wei, G.-W. &
+Pan, F. Algebraic graph-assisted bidirectional transformers for molecular
+property prediction. Nature Communications 12, 1–9 (2021).
+463.
+Zhang, S., Hu, Z., Subramonian, A. & Sun, Y. Motif-driven contrastive
+learning of graph representations. arXiv preprint arXiv:2012.12533 (2020).
+464.
+Zhu, J., Xia, Y., Qin, T., Zhou, W., Li, H. & Liu, T.-Y. Dual-view Molecule
+Pre-training. arXiv preprint arXiv:2106.10234 (2021).
+465.
+Zhu, Y., Chen, D., Du, Y., Wang, Y., Liu, Q. & Wu, S. Featurizations Matter: A Multiview Contrastive Learning Approach to Molecular Pretraining
+in ICML 2022 2nd AI for Science Workshop (2022).
+466.
+Wang, Y., Magar, R., Liang, C. & Barati Farimani, A. Improving Molecular Contrastive Learning via Faulty Negative Mitigation and Decomposed Fragment Contrast. Journal of Chemical Information and Modeling
+(2022).
+467.
+Fang, Y., Yang, H., Zhuang, X., Shao, X., Fan, X. & Chen, H. Knowledgeaware contrastive molecular graph learning. arXiv preprint arXiv:2103.13047
+(2021).
+468.
+Sun, M., Xing, J., Wang, H., Chen, B. & Zhou, J. MoCL: data-driven
+molecular fingerprint via knowledge-aware contrastive learning from molecular graph in Proceedings of the 27th ACM SIGKDD Conference on Knowledge Discovery & Data Mining (2021), 3585–3594.
+
+Graph Neural Networks for Molecules
+65
+469.
+Fang, Y., Zhang, Q., Yang, H., Zhuang, X., Deng, S., Zhang, W., Qin,
+M., Chen, Z., Fan, X. & Chen, H. Molecular contrastive learning with
+chemical element knowledge graph in Proceedings of the AAAI Conference
+on Artificial Intelligence 36 (2022), 3968–3976.
+470.
+Gao, Z., Tan, C., Wu, L. & Li, S. Z. CoSP: Co-supervised pretraining of
+pocket and ligand. arXiv preprint arXiv:2206.12241 (2022).
+
